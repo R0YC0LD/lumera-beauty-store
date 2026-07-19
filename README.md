@@ -1,17 +1,33 @@
 # Luméra Beauty Store
 
-Luméra; sıcak mercan tonlarında özgün marka kimliği, ürün keşfi, arama, favori, sepet, sipariş akışı ve kapsamlı yönetim paneli bulunan kozmetik e-ticaret uygulamasıdır.
+Özgün Luméra kimliğiyle hazırlanmış tam kapsamlı kozmetik mağazası, sipariş akışı, yönetim paneli ve Firebase kullanmayan Cloudflare veri katmanı.
+
+## Canlı yayın
+
+- GitHub Pages: https://r0yc0ld.github.io/lumera-beauty-store/
+- Tam uygulama önizlemesi: https://lumera-beauty-store.ongorulemeyengelecek.chatgpt.site
 
 ## Öne çıkanlar
 
 - Masaüstü ve mobil uyumlu premium mağaza vitrini
-- Arama, ürün detayı, favori, kalıcı sepet ve tek sayfa checkout akışı
-- Ciro, sipariş, dönüşüm, stok ve bekleyen işler dashboard'u
-- Katalog, müşteri, kampanya, banner, içerik, tedarikçi ve rapor modülleri
-- iyzico / PayTR seçimi, 3D Secure, test modu, taksit ve alternatif ödeme ayarları
+- Arama, kategori filtreleri, sıralama, ürün detayı ve favoriler
+- Kalıcı sepet, teslimat formu, ödeme seçimi ve sipariş kaydı
+- Üç adımlı cilt analizi ve kişiselleştirilmiş ritüel önerisi
+- Journal, bülten, kargo, iade, SSS, KVKK ve sözleşme içerikleri
 - Logoya beş hızlı tıklamayla açılan gizli yönetici girişi
+- Sipariş, ürün, stok, müşteri, kampanya, içerik, SEO ve POS modülleri
+- iyzico / PayTR / özel banka seçimi, 3D Secure, taksit ve test/canlı mod ayarları
 - Ürün, stok, sipariş, müşteri, bülten, ayar ve denetim verileri için Cloudflare Workers + D1
-- GitHub Pages üzerinde bağımsız ve yönlendirme sorunu yaşamayan tam mağaza uygulaması
+- GitHub Pages yönlendirmeleri için aynı uygulamayı sunan `404.html`
+
+## Yönetici girişi
+
+Sol üstteki Luméra logosuna 1,6 saniye içinde beş kez tıklayın.
+
+- Kullanıcı adı: `admin`
+- İlk şifre: `12345`
+
+Canlı Worker bağlantısında parola yalnızca Cloudflare secret olarak tutulur ve ilk kurulumdan sonra güçlü bir parolayla değiştirilmelidir.
 
 ## Yerel geliştirme
 
@@ -23,15 +39,23 @@ npm run dev
 Üretim doğrulaması:
 
 ```bash
-npm run build
+npm test
 ```
+
+## Veri katmanı
+
+`cloudflare-worker/` dizini ücretsiz Cloudflare Workers + D1 API'sini ve veritabanı şemasını içerir. Tutulan veriler ürünler, stok, siparişler, müşteriler, bülten aboneleri, mağaza/POS ayarları ve denetim kayıtlarıdır.
+
+Worker yayınlandığında oluşan adres `github-pages/config.js` içindeki `apiBase` alanına eklenir. API bağlı değilken sepet ve düzenlemeler cihazda korunur; API bağlandığında merkezi D1 verileri kaynak olur.
 
 ## Güvenlik
 
-İlk yönetici bilgileri proje sahibinin isteğiyle `admin / 12345` olarak tanımlanmıştır. Canlı Worker bağlantısında parola yalnızca Cloudflare secret olarak tutulur ve ilk kurulumdan sonra değiştirilmelidir.
+Gerçek POS anahtarları kaynak koda, tarayıcı depolamasına, D1 veritabanına veya GitHub deposuna yazılmaz. Canlı değerler yalnızca Cloudflare Worker secret olarak tanımlanır. Gerçek tahsilat için sağlayıcı hesabı, şirket evrakları, webhook doğrulaması ve gerçek kartla uçtan uca test gerekir.
 
-Gerçek POS anahtarları kaynak koda, tarayıcı depolamasına, D1 veritabanına veya GitHub deposuna yazılmaz. `.env.example` yalnızca gerekli anahtar adlarını listeler. Canlı değerler şifreli ortam değişkenleri olarak tanımlanmalıdır. Gerçek tahsilat için sağlayıcı hesabı, şirket evrakları, webhook doğrulaması ve gerçek kartla uçtan uca test gerekir.
+## Kaynak yapısı
 
-## Yayın
-
-`github-pages/` dizini GitHub Pages uygulamasını içerir. `cloudflare-worker/` dizini Firebase kullanılmadan hazırlanan merkezi API ve D1 şemasını içerir. Worker yayınlandığında oluşan adres `github-pages/config.js` içindeki `apiBase` alanına eklenir.
+- `github-pages/`: Tam GitHub Pages uygulaması
+- `cloudflare-worker/`: Merkezi API ve D1 şeması
+- `app/`: React/vinext Sites uygulaması
+- `tests/`: Derleme ve yayın paketi kontrolleri
+- `lumera-source.zip`: Önceki kaynak arşivi
