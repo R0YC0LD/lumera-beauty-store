@@ -16,10 +16,12 @@ GitHub Pages yayını `github-pages/` klasörünü paketleyen GitHub Actions iş
 - Kalıcı sepet, teslimat formu, ödeme seçimi ve sipariş kaydı
 - Üç adımlı cilt analizi ve kişiselleştirilmiş ritüel önerisi
 - Journal, bülten, kargo, iade, SSS, KVKK ve sözleşme içerikleri
+- Kupon sistemi: yüzde / sabit tutar / ücretsiz kargo kuponları, minimum sepet, tarih ve kullanım limiti (sunucu tarafında doğrulanır)
+- Ürün yorumları: müşteri gönderir, yönetici onaylar, vitrine canlı puan ve değerlendirme sayısı yansır
 - Logoya beş hızlı tıklamayla açılan gizli yönetici girişi
-- Sipariş, ürün, stok, müşteri, kampanya, içerik, SEO ve POS modülleri
+- Tam çalışan yönetim modülleri: genel bakış (canlı ciro/sipariş), siparişler (durum + ödeme durumu + detay), ürünler, kategoriler, stok, müşteriler + bülten aboneleri (CSV dışa aktarma), kampanyalar (hızlı indirim ve kargo eşiği), kuponlar, yorum moderasyonu, markalar, içerik, SEO, sözleşme/sayfa editörü, yedekleme (JSON) ve denetim günlüğü
 - iyzico / PayTR / özel banka seçimi, 3D Secure, taksit ve test/canlı mod ayarları
-- Ürün, stok, sipariş, müşteri, bülten, ayar ve denetim verileri için Cloudflare Workers + D1
+- Ürün, stok, sipariş, müşteri, kupon, yorum, bülten, ayar ve denetim verileri için Cloudflare Workers + D1
 - GitHub Pages yönlendirmeleri için aynı uygulamayı sunan `404.html`
 
 ## Yönetici girişi
@@ -46,7 +48,7 @@ npm test
 
 ## Veri katmanı
 
-`cloudflare-worker/` dizini ücretsiz Cloudflare Workers + D1 API'sini ve veritabanı şemasını içerir. Tutulan veriler ürünler, stok, siparişler, müşteriler, bülten aboneleri, mağaza/POS ayarları ve denetim kayıtlarıdır.
+`cloudflare-worker/` dizini ücretsiz Cloudflare Workers + D1 API'sini ve veritabanı şemasını içerir. Tutulan veriler ürünler, stok, siparişler + sipariş kalemleri, müşteriler, kuponlar, ürün yorumları, bülten aboneleri, mağaza/POS ayarları, düzenlenebilir sayfa içerikleri ve denetim kayıtlarıdır. Şema değişiklikleri `cloudflare-worker/migrations/` altında sürümlenir.
 
 Canlı Worker adresi: https://lumera-commerce-api.lumera-beauty-store.workers.dev
 

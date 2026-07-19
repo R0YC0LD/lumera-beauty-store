@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_id TEXT,
   customer_json TEXT NOT NULL,
   total INTEGER NOT NULL,
+  discount INTEGER NOT NULL DEFAULT 0,
+  coupon_code TEXT,
   status TEXT NOT NULL DEFAULT 'new',
   payment_method TEXT NOT NULL,
   payment_status TEXT NOT NULL DEFAULT 'pending',
@@ -76,6 +78,30 @@ CREATE TABLE IF NOT EXISTS newsletter_subscribers (
   source TEXT NOT NULL DEFAULT 'storefront'
 );
 
+CREATE TABLE IF NOT EXISTS coupons (
+  code TEXT PRIMARY KEY,
+  type TEXT NOT NULL DEFAULT 'percent',
+  value INTEGER NOT NULL DEFAULT 0,
+  min_total INTEGER NOT NULL DEFAULT 0,
+  starts_at TEXT,
+  ends_at TEXT,
+  usage_limit INTEGER,
+  used_count INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS reviews (
+  id TEXT PRIMARY KEY,
+  product_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  rating INTEGER NOT NULL,
+  comment TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(product_id) REFERENCES products(id)
+);
+
 CREATE TABLE IF NOT EXISTS audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   actor TEXT NOT NULL,
@@ -90,6 +116,8 @@ CREATE INDEX IF NOT EXISTS products_category_idx ON products(category, active);
 CREATE INDEX IF NOT EXISTS orders_created_idx ON orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS orders_status_idx ON orders(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS audit_created_idx ON audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS reviews_product_idx ON reviews(product_id, status);
+CREATE INDEX IF NOT EXISTS reviews_status_idx ON reviews(status, created_at DESC);
 
 INSERT OR IGNORE INTO store_settings(key,value) VALUES
 ('store','{"announcement":"₺1.000 ve üzeri alışverişlerde kargo bizden · 14.00''e kadar aynı gün gönderim","heroEyebrow":"YENİ NESİL GÜZELLİK SEÇKİSİ","heroTitle":"Işığını bul.|Ritüelini yarat.","heroCopy":"Cildini dinleyen, dünyaya nazik ve sonuçlarıyla güçlü seçkiler.","shippingThreshold":1000,"loyaltyRate":5,"provider":"iyzico","threeDSecure":true,"testMode":true,"bankTransfer":true,"cashOnDelivery":false,"installments":[2,3,6,9],"seoTitle":"Luméra — Işığını Bul","seoDescription":"Seçilmiş güzellik ritüelleri ve güvenli alışveriş deneyimi."}');
