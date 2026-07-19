@@ -7,6 +7,8 @@
 - GitHub Pages: https://r0yc0ld.github.io/lumera-beauty-store/
 - Tam uygulama önizlemesi: https://lumera-beauty-store.ongorulemeyengelecek.chatgpt.site
 
+GitHub Pages yayını `github-pages/` klasörünü paketleyen GitHub Actions iş akışıyla otomatik güncellenir.
+
 ## Öne çıkanlar
 
 - Masaüstü ve mobil uyumlu premium mağaza vitrini
