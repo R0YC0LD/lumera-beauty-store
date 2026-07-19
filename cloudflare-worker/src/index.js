@@ -39,6 +39,7 @@ export default {
       if (url.pathname.startsWith("/api/reviews/") && request.method === "PATCH") return moderateReview(request, env, admin, decodeURIComponent(url.pathname.split("/").pop()), cors);
       if (url.pathname === "/api/pos/credentials" && request.method === "GET") return posCredentialStatus(env, cors);
       if (url.pathname === "/api/pos/credentials" && request.method === "PUT") return savePosCredentials(request, env, admin, cors);
+      if (url.pathname === "/api/email/test" && request.method === "POST") return emailTest(request, env, admin, cors);
       return json({ error: "Endpoint bulunamadı" }, 404, cors);
     } catch (error) {
       console.error(error);
@@ -48,8 +49,9 @@ export default {
 };
 
 function corsHeaders(origin, allowed) {
-  const expected = allowed || "https://r0yc0ld.github.io";
-  const accepted = origin === expected || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:");
+  const expected = allowed || "https://lumrea.com";
+  const extras = ["https://www.lumrea.com", "https://lumrea.com", "https://r0yc0ld.github.io"];
+  const accepted = origin === expected || extras.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:");
   return { "Access-Control-Allow-Origin": accepted ? origin : expected, "Access-Control-Allow-Headers": "Content-Type, Authorization", "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS", "Access-Control-Max-Age": "86400", "Vary": "Origin" };
 }
 function json(data, status = 200, headers = {}) { return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...headers } }); }
@@ -57,7 +59,7 @@ async function body(request) { const data = await request.json(); if (!data || t
 function safeJson(value, fallback) { try { return JSON.parse(value); } catch { return fallback; } }
 function publicProduct(row) { return { id: row.id, name: row.name, brand: row.brand, category: row.category, sku: row.sku, price: row.price, oldPrice: row.old_price, stock: row.stock, rating: row.rating, badge: row.badge, tags: safeJson(row.tags, []), tone: row.tone, accent: row.accent, color: row.color, description: row.description, ingredients: row.ingredients, usage: row.usage, imageUrl: row.image_url || null, variants: safeJson(row.variants, []), criticalStock: row.critical_stock ?? 20, active: Boolean(row.active) }; }
 function adminProduct(row) { return { ...publicProduct(row), cost: row.cost ?? null }; }
-function storefrontUrl(env) { return (env.STOREFRONT_URL || "https://r0yc0ld.github.io/lumera-beauty-store/").replace(/\/?$/, "/"); }
+function storefrontUrl(env) { return (env.STOREFRONT_URL || "https://lumrea.com/").replace(/\/?$/, "/"); }
 
 async function bootstrap(env, cors) {
   const [products, settings, reviewStats] = await Promise.all([
@@ -119,6 +121,15 @@ async function savePosCredentials(request, env, actor, cors) {
     const merchantId = String(data.merchantId || "").trim(), merchantKey = String(data.merchantKey || "").trim(), merchantSalt = String(data.merchantSalt || "").trim();
     if (!merchantId || !merchantKey || !merchantSalt) return json({ error: "PayTR mağaza no, anahtar ve salt zorunlu" }, 400, cors);
     clean = { merchantId, merchantKey, merchantSalt };
+  } else if (provider === "email") {
+    const service = ["resend", "brevo"].includes(data.service) ? data.service : null;
+    const apiKey = String(data.apiKey || "").trim();
+    const fromEmail = String(data.fromEmail || "").trim().toLowerCase();
+    const fromName = String(data.fromName || "").trim().slice(0, 60) || "Luméra Beauty Store";
+    if (!service) return json({ error: "E-posta servisi seçin (Resend veya Brevo)" }, 400, cors);
+    if (!apiKey) return json({ error: "API anahtarı zorunlu" }, 400, cors);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fromEmail)) return json({ error: "Geçerli bir gönderen e-posta adresi girin" }, 400, cors);
+    clean = { service, apiKey, fromEmail, fromName };
   } else return json({ error: "Geçersiz sağlayıcı" }, 400, cors);
   const encrypted = await encryptCredentials(env, clean);
   await env.DB.prepare("INSERT INTO pos_credentials(provider,data,updated_at) VALUES(?,?,CURRENT_TIMESTAMP) ON CONFLICT(provider) DO UPDATE SET data=excluded.data,updated_at=CURRENT_TIMESTAMP").bind(provider, encrypted).run();
@@ -133,8 +144,86 @@ async function posCredentialStatus(env, cors) {
     if (!creds) { status[row.provider] = { configured: false }; continue; }
     if (row.provider === "iyzico") status[row.provider] = { configured: true, hint: mask(creds.apiKey), sandbox: Boolean(creds.sandbox), updatedAt: row.updated_at };
     else if (row.provider === "paytr") status[row.provider] = { configured: true, hint: mask(creds.merchantId), updatedAt: row.updated_at };
+    else if (row.provider === "email") status[row.provider] = { configured: true, hint: mask(creds.apiKey), service: creds.service, fromEmail: creds.fromEmail, fromName: creds.fromName, updatedAt: row.updated_at };
   }
   return json({ pos: status }, 200, cors);
+}
+
+// ---- Sipariş durum e-postaları: panelde kayıtlı Resend/Brevo bilgileri otomatik kullanılır ----
+const EMAIL_COPY = {
+  new:       { subject: no => `#${no} Numaralı Siparişini Aldık ✓`,        title: "Siparişini aldık ✓",        body: "Siparişin bize ulaştı. Ödemen onaylandığında hemen hazırlamaya başlayacağız." },
+  paid:      { subject: no => `#${no} Numaralı Siparişinin Ödemesi Onaylandı`, title: "Ödemen onaylandı",       body: "Ödemen bankadan onaylandı; siparişin hazırlık sırasına alındı." },
+  preparing: { subject: no => `#${no} Numaralı Siparişin Hazırlanıyor`,    title: "Siparişin hazırlanıyor 📦", body: "Ürünlerin özenle paketleniyor. Kargoya verildiğinde tekrar haber vereceğiz." },
+  shipped:   { subject: no => `#${no} Numaralı Siparişin Kargoya Verildi`, title: "Siparişin yola çıktı 🚚",   body: "Paketin kargo firmasına teslim edildi. Yakında kapında!" },
+  complete:  { subject: no => `#${no} Numaralı Siparişin Teslim Edildi`,   title: "Siparişin teslim edildi 🎉", body: "Keyifle kullanman dileğiyle! Deneyimini ürün sayfasından değerlendirebilirsin." },
+  cancelled: { subject: no => `#${no} Numaralı Siparişiniz İptal Edildi`,  title: "Siparişin iptal edildi",    body: "Siparişin iptal edildi. Ödeme yaptıysan tutar aynı ödeme yöntemine iade edilecek. Soruların için destek ekibimize yazabilirsin." }
+};
+function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function moneyTr(value) { return `${Number(value).toLocaleString("tr-TR")} TL`; }
+function orderEmailHtml(order, customer, items, statusKey, settings) {
+  const copy = EMAIL_COPY[statusKey];
+  const rows = items.map(item => `<tr><td style="padding:10px 0;border-bottom:1px solid #eee7e0;font:500 13px/1.4 Arial,sans-serif;color:#3d3733">${escapeHtml(item.product_name)}<span style="color:#9b8f87"> × ${item.quantity}</span></td><td align="right" style="padding:10px 0;border-bottom:1px solid #eee7e0;font:700 13px/1.4 Arial,sans-serif;color:#3d3733">${moneyTr(item.unit_price * item.quantity)}</td></tr>`).join("");
+  const support = [settings.supportEmail, settings.supportPhone].filter(Boolean).join(" · ");
+  return `<!doctype html><html lang="tr"><body style="margin:0;padding:0;background:#f4efe9"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4efe9;padding:26px 0"><tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden">
+<tr><td style="background:#171419;padding:22px 32px"><span style="font:800 22px/1 Georgia,serif;color:#f3e2d5;letter-spacing:1px">luméra ✦</span><span style="font:700 9px/1 Arial,sans-serif;color:#9b8f87;letter-spacing:3px;padding-left:10px">BEAUTY STORE</span></td></tr>
+<tr><td style="padding:34px 32px 8px"><h1 style="margin:0;font:800 24px/1.3 Arial,sans-serif;color:#171419">${copy.title}</h1>
+<p style="font:500 14px/1.7 Arial,sans-serif;color:#5d554f;margin:14px 0 0">Merhaba ${escapeHtml(customer.firstName || "değerli müşterimiz")}, <b>#${escapeHtml(order.order_no)}</b> numaralı siparişinle ilgili bir güncelleme var:</p>
+<p style="font:500 14px/1.7 Arial,sans-serif;color:#5d554f;margin:8px 0 0">${copy.body}</p></td></tr>
+<tr><td style="padding:22px 32px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf6f2;border-radius:12px"><tr><td style="padding:18px 22px">
+<p style="margin:0 0 6px;font:800 11px/1 Arial,sans-serif;color:#9b8f87;letter-spacing:1px">SİPARİŞ ÖZETİ · ${escapeHtml(new Date((order.created_at || "").replace(" ", "T") + "Z").toLocaleDateString("tr-TR") || "")}</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}
+${order.discount ? `<tr><td style="padding:10px 0 0;font:500 13px Arial,sans-serif;color:#0a7a4b">Kupon indirimi${order.coupon_code ? ` (${escapeHtml(order.coupon_code)})` : ""}</td><td align="right" style="padding:10px 0 0;font:700 13px Arial,sans-serif;color:#0a7a4b">−${moneyTr(order.discount)}</td></tr>` : ""}
+<tr><td style="padding:12px 0 0;font:800 14px Arial,sans-serif;color:#171419">Toplam</td><td align="right" style="padding:12px 0 0;font:800 16px Arial,sans-serif;color:#171419">${moneyTr(order.total)}</td></tr></table>
+</td></tr></table></td></tr>
+<tr><td style="padding:0 32px 26px"><p style="margin:0;font:700 11px/1 Arial,sans-serif;color:#9b8f87;letter-spacing:1px">TESLİMAT ADRESİ</p>
+<p style="margin:6px 0 0;font:500 13px/1.6 Arial,sans-serif;color:#5d554f">${escapeHtml(`${customer.firstName || ""} ${customer.lastName || ""}`.trim())}<br>${escapeHtml(order.shipping_address || "")}${customer.city ? `<br>${escapeHtml(customer.city)}` : ""}</p></td></tr>
+<tr><td style="background:#faf6f2;padding:18px 32px"><p style="margin:0;font:500 11px/1.7 Arial,sans-serif;color:#9b8f87">Bu e-posta #${escapeHtml(order.order_no)} numaralı siparişinle ilgili bilgilendirme amacıyla gönderildi.${support ? `<br>Destek: ${escapeHtml(support)}` : ""}<br>© Luméra Beauty Store</p></td></tr>
+</table></td></tr></table></body></html>`;
+}
+async function dispatchEmail(creds, to, subject, html) {
+  if (creds.service === "resend") {
+    const response = await fetch("https://api.resend.com/emails", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${creds.apiKey}` }, body: JSON.stringify({ from: `${creds.fromName} <${creds.fromEmail}>`, to: [to], subject, html }) });
+    const data = await response.json().catch(() => ({}));
+    return response.ok ? { ok: true } : { ok: false, error: data.message || `Resend hata kodu ${response.status}` };
+  }
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", { method: "POST", headers: { "Content-Type": "application/json", "api-key": creds.apiKey }, body: JSON.stringify({ sender: { name: creds.fromName, email: creds.fromEmail }, to: [{ email: to }], subject, htmlContent: html }) });
+  const data = await response.json().catch(() => ({}));
+  return response.ok ? { ok: true } : { ok: false, error: data.message || `Brevo hata kodu ${response.status}` };
+}
+async function sendOrderEmail(env, orderId, statusKey) {
+  try {
+    if (!EMAIL_COPY[statusKey]) return false;
+    const creds = await getCredentials(env, "email");
+    if (!creds) return false;
+    const order = await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(orderId).first();
+    if (!order) return false;
+    const customer = safeJson(order.customer_json, {});
+    if (!customer.email) return false;
+    const items = (await env.DB.prepare("SELECT product_name,unit_price,quantity FROM order_items WHERE order_id = ?").bind(orderId).all()).results;
+    const settingsRow = await env.DB.prepare("SELECT value FROM store_settings WHERE key='store'").first();
+    const settings = safeJson(settingsRow?.value, {});
+    const copy = EMAIL_COPY[statusKey];
+    const result = await dispatchEmail(creds, customer.email, copy.subject(order.order_no), orderEmailHtml(order, customer, items, statusKey, settings));
+    await audit(env, "system", result.ok ? "email.sent" : "email.failed", "order", orderId, { status: statusKey, to: customer.email, ...(result.ok ? {} : { error: result.error }) });
+    return result.ok;
+  } catch (error) { console.error("email", error); return false; }
+}
+async function emailTest(request, env, actor, cors) {
+  const data = await body(request);
+  const to = String(data.to || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: "Geçerli bir alıcı adresi girin" }, 400, cors);
+  const creds = await getCredentials(env, "email");
+  if (!creds) return json({ error: "Önce e-posta servis bilgilerini kaydedin" }, 409, cors);
+  const sampleOrder = { order_no: "LMR-TEST-00001", total: 1378, discount: 275, coupon_code: "HOSGELDIN10", shipping_address: "Örnek Mah. Deneme Sk. No:1", created_at: new Date().toISOString() };
+  const sampleCustomer = { firstName: "Test", lastName: "Alıcı", email: to, city: "İstanbul" };
+  const sampleItems = [{ product_name: "Barrier Cloud Nem Kremi", unit_price: 649, quantity: 2 }];
+  const settingsRow = await env.DB.prepare("SELECT value FROM store_settings WHERE key='store'").first();
+  const settings = safeJson(settingsRow?.value, {});
+  const result = await dispatchEmail(creds, to, "Luméra e-posta testi — #LMR-TEST-00001 Numaralı Siparişin Hazırlanıyor", orderEmailHtml(sampleOrder, sampleCustomer, sampleItems, "preparing", settings));
+  await audit(env, actor, result.ok ? "email.test.sent" : "email.test.failed", "email", to, result.ok ? {} : { error: result.error });
+  if (!result.ok) return json({ error: `Gönderilemedi: ${result.error}` }, 502, cors);
+  return json({ ok: true }, 200, cors);
 }
 
 async function newsletter(request, env, cors) {
@@ -201,7 +290,8 @@ async function createOrder(request, env, cors) {
   variantUpdates.forEach((variants, id) => statements.push(env.DB.prepare("UPDATE products SET variants=? WHERE id=?").bind(JSON.stringify(variants), id)));
   if (couponCode) statements.push(env.DB.prepare("UPDATE coupons SET used_count=used_count+1 WHERE code=?").bind(couponCode));
   await env.DB.batch(statements); await audit(env, "storefront", "order.created", "order", data.id, { orderNo: data.orderNo, total, discount, coupon: couponCode });
-  return json({ order: { id: data.id, orderNo: data.orderNo, total, discount, coupon: couponCode, status: "new", paymentStatus: data.payment === "card" ? "pending" : "awaiting" } }, 201, cors);
+  const emailed = await sendOrderEmail(env, data.id, "new");
+  return json({ order: { id: data.id, orderNo: data.orderNo, total, discount, coupon: couponCode, status: "new", paymentStatus: data.payment === "card" ? "pending" : "awaiting" }, emailed }, 201, cors);
 }
 
 // ---- Ödeme başlatma: panelde kayıtlı sağlayıcı bilgileri otomatik kullanılır ----
@@ -291,7 +381,7 @@ async function iyzicoCallback(request, env, url) {
   if (!creds) return Response.redirect(`${store}?payment=fail&order=${encodeURIComponent(order.order_no)}`, 302);
   const result = await iyzicoRetrieve(creds, token, order.id);
   const success = result.status === "success" && result.paymentStatus === "SUCCESS";
-  if (success) { await env.DB.prepare("UPDATE orders SET payment_status='paid',paid_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run(); await audit(env, "iyzico", "payment.completed", "order", order.id, { orderNo: order.order_no }); }
+  if (success) { await env.DB.prepare("UPDATE orders SET payment_status='paid',paid_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run(); await audit(env, "iyzico", "payment.completed", "order", order.id, { orderNo: order.order_no }); await sendOrderEmail(env, order.id, "paid"); }
   else await audit(env, "iyzico", "payment.failed", "order", order.id, { orderNo: order.order_no, detail: result.errorMessage || result.paymentStatus || "unknown" });
   return Response.redirect(`${store}?payment=${success ? "success" : "fail"}&order=${encodeURIComponent(order.order_no)}`, 302);
 }
@@ -327,7 +417,7 @@ async function paytrWebhook(request, env) {
   if (!(await constantEqual(hash, expected))) return new Response("PAYTR notification failed: bad hash", { status: 400 });
   const order = await env.DB.prepare("SELECT * FROM orders WHERE payment_token = ?").bind(merchantOid).first();
   if (order) {
-    if (status === "success") { await env.DB.prepare("UPDATE orders SET payment_status='paid',paid_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run(); await audit(env, "paytr", "payment.completed", "order", order.id, { orderNo: order.order_no }); }
+    if (status === "success") { await env.DB.prepare("UPDATE orders SET payment_status='paid',paid_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(order.id).run(); await audit(env, "paytr", "payment.completed", "order", order.id, { orderNo: order.order_no }); await sendOrderEmail(env, order.id, "paid"); }
     else await audit(env, "paytr", "payment.failed", "order", order.id, { orderNo: order.order_no });
   }
   return new Response("OK");
@@ -363,13 +453,14 @@ async function saveSettings(request, env, actor, cors) {
     }
   }
   const categories = (Array.isArray(data.categories) ? data.categories : []).slice(0, 12).map(c => ({ name: String(c.name || "").slice(0, 40), copy: String(c.copy || "").slice(0, 60), tone: /^#[0-9a-fA-F]{6}$/.test(c.tone) ? c.tone : "#ead7cf", accent: /^#[0-9a-fA-F]{6}$/.test(c.accent) ? c.accent : "#fff5ef" })).filter(c => c.name);
+  const brands = (Array.isArray(data.brands) ? data.brands : []).slice(0, 30).map(b => ({ name: String(b.name || "").slice(0, 40), copy: String(b.copy || "").slice(0, 80) })).filter(b => b.name);
   let quiz = null;
   if (data.quiz && typeof data.quiz === "object") {
     const questions = (Array.isArray(data.quiz.questions) ? data.quiz.questions : []).slice(0, 8).map(q => ({ q: String(q.q || "").slice(0, 160), o: (Array.isArray(q.o) ? q.o : []).slice(0, 6).map(o => String(o).slice(0, 60)).filter(Boolean) })).filter(q => q.q && q.o.length >= 2);
     const result = data.quiz.result && typeof data.quiz.result === "object" ? { title: String(data.quiz.result.title || "").slice(0, 120), copy: String(data.quiz.result.copy || "").slice(0, 400), productIds: (Array.isArray(data.quiz.result.productIds) ? data.quiz.result.productIds : []).slice(0, 6).map(String) } : { title: "", copy: "", productIds: [] };
     if (questions.length) quiz = { questions, result };
   }
-  const safe = { announcement:String(data.announcement||"").slice(0,240),heroEyebrow:String(data.heroEyebrow||"").slice(0,100),heroTitle:String(data.heroTitle||"").slice(0,150),heroCopy:String(data.heroCopy||"").slice(0,500),shippingThreshold:Math.max(0,Number(data.shippingThreshold)||0),loyaltyRate:Math.max(0,Number(data.loyaltyRate)||0),provider:["iyzico","paytr","custom"].includes(data.provider)?data.provider:"iyzico",threeDSecure:Boolean(data.threeDSecure),testMode:Boolean(data.testMode),bankTransfer:Boolean(data.bankTransfer),cashOnDelivery:Boolean(data.cashOnDelivery),installments:(Array.isArray(data.installments)?data.installments:[]).filter(n=>[2,3,6,9,12].includes(Number(n))).map(Number),supportEmail:String(data.supportEmail||"").slice(0,120),supportPhone:String(data.supportPhone||"").slice(0,40),bankName:String(data.bankName||"").slice(0,80),iban:String(data.iban||"").slice(0,40),accountHolder:String(data.accountHolder||"").slice(0,80),seoTitle:String(data.seoTitle||"").slice(0,80),seoDescription:String(data.seoDescription||"").slice(0,180),instagram:String(data.instagram||"").slice(0,200),tiktok:String(data.tiktok||"").slice(0,200),twitter:String(data.twitter||"").slice(0,200),pages,categories,quiz };
+  const safe = { announcement:String(data.announcement||"").slice(0,240),heroEyebrow:String(data.heroEyebrow||"").slice(0,100),heroTitle:String(data.heroTitle||"").slice(0,150),heroCopy:String(data.heroCopy||"").slice(0,500),shippingThreshold:Math.max(0,Number(data.shippingThreshold)||0),loyaltyRate:Math.max(0,Number(data.loyaltyRate)||0),provider:["iyzico","paytr","custom"].includes(data.provider)?data.provider:"iyzico",threeDSecure:Boolean(data.threeDSecure),testMode:Boolean(data.testMode),bankTransfer:Boolean(data.bankTransfer),cashOnDelivery:Boolean(data.cashOnDelivery),installments:(Array.isArray(data.installments)?data.installments:[]).filter(n=>[2,3,6,9,12].includes(Number(n))).map(Number),supportEmail:String(data.supportEmail||"").slice(0,120),supportPhone:String(data.supportPhone||"").slice(0,40),bankName:String(data.bankName||"").slice(0,80),iban:String(data.iban||"").slice(0,40),accountHolder:String(data.accountHolder||"").slice(0,80),seoTitle:String(data.seoTitle||"").slice(0,80),seoDescription:String(data.seoDescription||"").slice(0,180),instagram:String(data.instagram||"").slice(0,200),tiktok:String(data.tiktok||"").slice(0,200),twitter:String(data.twitter||"").slice(0,200),pages,categories,brands,quiz };
   await env.DB.prepare("INSERT INTO store_settings(key,value,updated_at) VALUES('store',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify(safe)).run();
   await audit(env, actor, "settings.updated", "settings", "store", {});
   return json({ ok:true, settings: safe }, 200, cors);
@@ -390,7 +481,13 @@ async function deleteProduct(env, actor, id, cors) {
 async function listFullProducts(env,cors){const rows=await env.DB.prepare("SELECT * FROM products ORDER BY created_at ASC").all();return json({products:rows.results.map(adminProduct)},200,cors);}
 async function listOrders(env,cors){const rows=await env.DB.prepare("SELECT * FROM orders ORDER BY created_at DESC LIMIT 250").all();return json({orders:rows.results.map(o=>({...o,customer:safeJson(o.customer_json,{})}))},200,cors);}
 async function orderDetail(env,id,cors){const order=await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(id).first();if(!order)return json({error:"Sipariş bulunamadı"},404,cors);const items=await env.DB.prepare("SELECT product_id,product_name,unit_price,quantity FROM order_items WHERE order_id = ?").bind(id).all();return json({order:{...order,customer:safeJson(order.customer_json,{}),items:items.results}},200,cors);}
-async function updateOrder(request,env,actor,id,cors){const data=await body(request);const updates=[],binds=[];if(data.status){if(!["new","preparing","shipped","complete","cancelled"].includes(data.status))return json({error:"Geçersiz durum"},400,cors);updates.push("status=?");binds.push(data.status);}if(data.paymentStatus){if(!["pending","awaiting","paid","refunded"].includes(data.paymentStatus))return json({error:"Geçersiz ödeme durumu"},400,cors);updates.push("payment_status=?");binds.push(data.paymentStatus);}if(!updates.length)return json({error:"Güncellenecek alan yok"},400,cors);await env.DB.prepare(`UPDATE orders SET ${updates.join(",")},updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(...binds,id).run();await audit(env,actor,"order.updated","order",id,data);return json({ok:true},200,cors);}
+async function updateOrder(request,env,actor,id,cors){const data=await body(request);const updates=[],binds=[];if(data.status){if(!["new","preparing","shipped","complete","cancelled"].includes(data.status))return json({error:"Geçersiz durum"},400,cors);updates.push("status=?");binds.push(data.status);}if(data.paymentStatus){if(!["pending","awaiting","paid","refunded"].includes(data.paymentStatus))return json({error:"Geçersiz ödeme durumu"},400,cors);updates.push("payment_status=?");binds.push(data.paymentStatus);}if(!updates.length)return json({error:"Güncellenecek alan yok"},400,cors);
+  const previous=data.status?await env.DB.prepare("SELECT status FROM orders WHERE id=?").bind(id).first():null;
+  await env.DB.prepare(`UPDATE orders SET ${updates.join(",")},updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(...binds,id).run();await audit(env,actor,"order.updated","order",id,data);
+  let emailed=false;
+  if(data.status&&previous&&previous.status!==data.status)emailed=await sendOrderEmail(env,id,data.status);
+  else if(data.paymentStatus==="paid")emailed=await sendOrderEmail(env,id,"paid");
+  return json({ok:true,emailed},200,cors);}
 async function listCustomers(env,cors){const rows=await env.DB.prepare("SELECT * FROM customers ORDER BY updated_at DESC LIMIT 500").all();return json({customers:rows.results},200,cors);}
 async function listSubscribers(env,cors){const rows=await env.DB.prepare("SELECT email,status,consent_at,source FROM newsletter_subscribers ORDER BY consent_at DESC LIMIT 1000").all();return json({subscribers:rows.results},200,cors);}
 async function listAudit(env,cors){const rows=await env.DB.prepare("SELECT actor,action,entity_type,entity_id,metadata,created_at FROM audit_log ORDER BY created_at DESC, id DESC LIMIT 120").all();return json({audit:rows.results.map(r=>({...r,metadata:safeJson(r.metadata,{})}))},200,cors);}

@@ -39,3 +39,15 @@ test("ships the complete GitHub Pages commerce app", async () => {
   assert.match(schema, /CREATE TABLE IF NOT EXISTS orders/);
   assert.doesNotMatch(`${html}${script}`, /Yönetim demosu/);
 });
+
+test("root copy served by GitHub Pages matches github-pages source", async () => {
+  for (const file of ["index.html", "404.html", "config.js", "assets/app.js", "assets/site.css", "CNAME", "robots.txt", "sitemap.xml"]) {
+    const [root, source] = await Promise.all([
+      readFile(new URL(`../${file}`, import.meta.url), "utf8"),
+      readFile(new URL(`../github-pages/${file}`, import.meta.url), "utf8"),
+    ]);
+    assert.equal(root, source, `${file} kök kopyası github-pages ile aynı olmalı (github-pages'i düzenledikten sonra köke kopyalayın)`);
+  }
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(html, /https:\/\/lumrea\.com\//);
+});
