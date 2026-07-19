@@ -20,7 +20,9 @@ GitHub Pages yayını `github-pages/` klasörünü paketleyen GitHub Actions iş
 - Ürün yorumları: müşteri gönderir, yönetici onaylar, vitrine canlı puan ve değerlendirme sayısı yansır
 - Logoya beş hızlı tıklamayla açılan gizli yönetici girişi
 - Tam çalışan yönetim modülleri: genel bakış (canlı ciro/sipariş), siparişler (durum + ödeme durumu + detay), ürünler, kategoriler, stok, müşteriler + bülten aboneleri (CSV dışa aktarma), kampanyalar (hızlı indirim ve kargo eşiği), kuponlar, yorum moderasyonu, markalar, içerik, SEO, sözleşme/sayfa editörü, yedekleme (JSON) ve denetim günlüğü
-- Detaylı ürün kartı: görsel URL, varyantlar (boy/renk — ayrı fiyat ve stok), alış fiyatı ile otomatik kâr marjı, kritik stok eşiği, kart renkleri, rozet ve etiketler
+- Detaylı ürün kartı: görsel URL, varyantlar (boy/renk — ayrı fiyat ve stok), alış fiyatı ile otomatik kâr marjı, kritik stok eşiği, kart renkleri, rozet ve etiketler; ürünler panelden kalıcı olarak silinebilir
+- Panelden düzenlenebilir cilt testi: sorular, cevaplar ve sonuçta önerilecek ürünler İçerik Yönetimi'nden yayınlanır
+- Kurumsal vitrin: güvence/ödeme şeridi (SSL, 3D Secure, taksit rozetleri), Hakkımızda sayfası, KVKK onaylı bülten kaydı, yapılandırılmış veri (JSON-LD), favicon, sürümlü statik dosyalar ve 404 yönlendirme sayfası; sosyal medya bağlantıları SEO modülünden yönetilir
 - Panelden yönetilebilir kategoriler (ad, slogan, renkler) ve ürünlerden otomatik türeyen marka duvarı
 - Gerçek Sanal POS: iyzico / PayTR API bilgileri panelden girilir, AES-GCM ile şifrelenip D1'de saklanır; test modu kapatıldığında sistem kayıtlı anahtarlarla ödemeyi otomatik başlatır (iyzico Checkout Form yönlendirmesi / PayTR iFrame), banka onayı webhook-callback ile siparişi otomatik "Ödendi" yapar
 - Havale/EFT hesap bilgileri (banka, IBAN, hesap sahibi) panelden yönetilir ve sipariş onayında müşteriye gösterilir
