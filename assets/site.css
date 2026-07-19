@@ -102,3 +102,6 @@
 .image-actions small{color:#9b8f87;font-size:10px;line-height:1.5}
 .image-actions .link-button{justify-self:start;font-size:11px;color:#b6423f}
 @media(max-width:900px){.image-upload{flex-direction:column}}
+
+/* v6: senkron uyarısı */
+.notice.sync-warning{background:#fdecec;border:1px solid #f3c1bf;color:#7c2d2a;margin-bottom:18px;display:flex;align-items:center;flex-wrap:wrap;gap:6px}

@@ -55,11 +55,14 @@
     if(!CONFIG.apiBase) throw new Error("API_NOT_CONFIGURED");
     const headers={"Content-Type":"application/json",...(options.headers||{})};
     if(state.token) headers.Authorization=`Bearer ${state.token}`;
-    const response=await fetch(`${CONFIG.apiBase.replace(/\/$/,"")}${path}`,{...options,headers});
+    let response;
+    try{ response=await fetch(`${CONFIG.apiBase.replace(/\/$/,"")}${path}`,{...options,headers}); }
+    catch{ const err=new Error("Sunucuya ulaşılamadı — internet bağlantınızı kontrol edin"); err.network=true; throw err; }
     const data=await response.json().catch(()=>({}));
-    if(!response.ok){const err=new Error(data.error||"İşlem tamamlanamadı");err.data=data;throw err;}
+    if(!response.ok){const err=new Error(data.error||"İşlem tamamlanamadı");err.data=data;err.status=response.status;throw err;}
     return data;
   }
+  function handleSessionExpiry(err){ if(String(err.message).includes("oturum")){ state.token=""; sessionStorage.removeItem("lumera_admin_token"); toast("Oturum süresi doldu — değişikliklerin buluta yazılması için tekrar giriş yapın",false); exitAdmin(); openAdminLogin(); return true; } return false; }
   async function bootstrap(){
     if(!CONFIG.apiBase){ setStorage(false); return; }
     try{ const data=await api("/api/bootstrap"); if(data.products?.length) state.products=data.products; if(data.settings&&Object.keys(data.settings).length) state.settings={...defaultSettings,...data.settings}; state.reviewStats=data.reviewStats||{}; state.apiOnline=true; setStorage(true); renderAll(); }
@@ -179,7 +182,16 @@
   // ---------- admin ----------
   function openAdminLogin(){closeLayers();$("#adminLogin").classList.add("show");document.body.classList.add("locked");setTimeout(()=>$("#adminUsername").focus(),100);}
   function closeAdminLogin(){$("#adminLogin").classList.remove("show");document.body.classList.remove("locked");}
-  async function login(username,password){if(state.apiOnline){const data=await api("/api/auth/login",{method:"POST",body:JSON.stringify({username,password})});state.token=data.token;sessionStorage.setItem("lumera_admin_token",data.token);}else if(username!=="admin"||password!=="12345")throw new Error("Kullanıcı adı veya şifre hatalı");showAdmin();}
+  async function login(username,password){
+    // Merkezi bağlantı yapılandırılmışsa giriş HER ZAMAN önce sunucuda denenir; yerel moda
+    // yalnızca sunucuya hiç ulaşılamadığında düşülür — böylece değişiklikler sessizce cihazda kalmaz.
+    if(CONFIG.apiBase){
+      try{ const data=await api("/api/auth/login",{method:"POST",body:JSON.stringify({username,password})}); state.token=data.token; sessionStorage.setItem("lumera_admin_token",data.token); state.apiOnline=true; setStorage(true); showAdmin(); return; }
+      catch(err){ if(!err.network) throw err; state.apiOnline=false; setStorage(false); }
+    }
+    if(username!=="admin"||password!=="12345")throw new Error("Kullanıcı adı veya şifre hatalı");
+    toast("Çevrimdışı mod: değişiklikler yalnızca bu cihazda kalır",false);
+    showAdmin();}
   function showAdmin(){closeAdminLogin();$("#storeView").style.display="none";$("#adminApp").classList.add("show");document.body.classList.remove("locked");renderAdmin();loadAdminData(true);scrollTo(0,0);}
   function exitAdmin(){$("#adminApp").classList.remove("show");$("#storeView").style.display="block";scrollTo(0,0);}
   async function loadAdminData(force=false){
@@ -200,9 +212,10 @@
   }
   function adminOrders(){ return state.admin.orders ?? state.orders; }
   function renderAdminNav(){const a=state.admin;$("#adminNav").innerHTML=adminModules.map(([id,icon,label])=>{const badge=id==="reviews"&&a.overview?.pendingReviews?` <b class="nav-badge">${a.overview.pendingReviews}</b>`:id==="orders"&&a.overview?.statuses?.new?` <b class="nav-badge">${a.overview.statuses.new}</b>`:"";return `<button data-admin-view="${id}" class="${state.adminView===id?"active":""}"><span>${icon}</span>${label}${badge}</button>`;}).join("");}
+  function syncBanner(){ if(state.apiOnline&&state.token)return ""; return `<div class="notice sync-warning"><b>⚠ Değişiklikler şu anda YALNIZCA bu cihazda saklanıyor.</b> Merkezi bağlantı ${state.apiOnline?"var ama yönetici oturumu buluta bağlı değil":"kurulamadı"}; yaptıklarınız diğer cihazlara ve müşterilere yansımaz. <button class="button dark" id="reconnectAdmin" style="margin-left:10px;padding:8px 14px;font-size:11px">Yeniden bağlan →</button></div>`; }
   function renderAdmin(){if(!$("#adminApp").classList.contains("show"))return;renderAdminNav();const mod=adminModules.find(x=>x[0]===state.adminView);$("#adminTitle").textContent=mod?.[2]||"Genel Bakış";const host=$("#adminContent");
     const views={dashboard:dashboardView,orders:ordersView,products:productsView,categories:categoriesView,stock:stockView,customers:customersView,campaigns:campaignsView,coupons:couponsView,reviews:reviewsView,brands:brandsView,content:contentView,pos:posView,settings:settingsView,seo:seoView,legal:legalView,backups:backupsView};
-    host.innerHTML=(views[state.adminView]||dashboardView)();setStorage(state.apiOnline);bindAdminForms();}
+    host.innerHTML=syncBanner()+(views[state.adminView]||dashboardView)();setStorage(state.apiOnline);bindAdminForms();}
   function offlineNotice(text){ return state.apiOnline?"":`<div class="notice" style="margin-bottom:16px"><b>Merkezi bağlantı yok.</b> ${text||"Bu modül canlı verilerle Cloudflare D1 bağlantısı üzerinden çalışır; şu an cihazdaki veriler gösteriliyor."}</div>`; }
   function criticalCount(){ return state.products.filter(p=>p.active!==false&&p.stock<(p.criticalStock??20)).length; }
   function dashboardView(){const ov=state.admin.overview;const orders=adminOrders();const revenue=ov?ov.revenue:orders.filter(o=>o.status!=="cancelled").reduce((s,o)=>s+o.total,0);const orderCount=ov?ov.orders:orders.length;const customerCount=ov?ov.customers:state.customers.length;const low=ov?ov.lowStock.length:criticalCount();const pending=ov?ov.pendingReviews:(state.admin.reviews||[]).filter(r=>r.status==="pending").length;const newOrders=ov?(ov.statuses?.new||0):orders.filter(o=>o.status==="new").length;const recent=ov?ov.recentOrders:orders.slice(0,8).map(o=>({order_no:o.orderNo,total:o.total,status:o.status,payment_status:o.paymentStatus,created_at:o.createdAt,customer:o.customer}));const profit=ov?.estimatedProfit;
@@ -290,8 +303,9 @@
   function exportBackup(){ const data={exportedAt:new Date().toISOString(),source:state.apiOnline?"cloudflare-d1":"local",settings:state.settings,products:state.products,orders:adminOrders(),customers:state.admin.customers??state.customers,subscribers:state.admin.subscribers??[],coupons:state.admin.coupons??[],reviews:state.admin.reviews??[]}; download(`lumrea-yedek-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(data,null,2)); toast("Yedek indirildi"); }
   function exportCustomersCsv(){ const list=state.admin.customers??[]; const rows=[["email","ad","soyad","telefon","sehir","siparis","harcama","izin"],...list.map(c=>[c.email,c.first_name,c.last_name,c.phone||"",c.city||"",c.order_count,c.total_spent,c.marketing_consent?"evet":"hayir"])]; download(`lumrea-musteriler-${new Date().toISOString().slice(0,10)}.csv`,rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(";")).join("\n"),"text/csv"); toast("CSV indirildi"); }
 
-  async function pushProduct(p){ persist(); if(state.apiOnline&&state.token){ try{ await api(`/api/products/${encodeURIComponent(p.id)}`,{method:"PUT",body:JSON.stringify({...p,cost:state.admin.costs[p.id]??null})}); }catch(e){ toast(e.message,false); } } }
-  async function saveSettingsRemote(){ persist(); if(state.apiOnline&&state.token){ try{ await api("/api/settings",{method:"PUT",body:JSON.stringify(state.settings)}); }catch(e){ toast(e.message,false); } } }
+  async function pushProduct(p){ persist(); if(state.apiOnline&&state.token){ try{ await api(`/api/products/${encodeURIComponent(p.id)}`,{method:"PUT",body:JSON.stringify({...p,cost:state.admin.costs[p.id]??null})}); }catch(e){ if(!handleSessionExpiry(e))toast(e.message,false); } } }
+  async function saveSettingsRemote(){ persist(); if(state.apiOnline&&state.token){ try{ await api("/api/settings",{method:"PUT",body:JSON.stringify(state.settings)}); }catch(e){ if(!handleSessionExpiry(e))toast(e.message,false); } } }
+  async function reconnectAdmin(){ toast("Bağlantı deneniyor…"); await bootstrap(); if(!state.apiOnline){ toast("Sunucuya hâlâ ulaşılamıyor",false); renderAdmin(); return; } if(!state.token){ exitAdmin(); openAdminLogin(); toast("Bağlantı kuruldu — buluta yazmak için tekrar giriş yapın"); return; } await loadAdminData(true); toast("Merkezi bağlantı kuruldu"); }
   function bindAdminForms(){
     const form=$("#storeSettings"); if(form)form.onsubmit=async e=>{e.preventDefault();const values=Object.fromEntries(new FormData(form));if(values.shippingThreshold!==undefined)values.shippingThreshold=Number(values.shippingThreshold);if(values.loyaltyRate!==undefined)values.loyaltyRate=Number(values.loyaltyRate);state.settings={...state.settings,...values};await saveSettingsRemote();renderHeader();renderFooter();toast("Değişiklikler yayınlandı");};
     const quizForm=$("#quizForm"); if(quizForm){
@@ -408,6 +422,7 @@
     if(t.dataset.filter){state.activeFilter=t.dataset.filter;state.activeCategory="";$$("[data-filter]").forEach(x=>x.classList.toggle("active",x===t));renderProducts();return;}
     if(t.dataset.adminView){state.adminView=t.dataset.adminView;renderAdmin();return;}
     if(t.id==="refreshAdmin"){loadAdminData(true);toast("Veriler yenileniyor");return;}
+    if(t.id==="reconnectAdmin"){reconnectAdmin();return;}
     if(t.dataset.orderDetail){openOrderDetail(t.dataset.orderDetail);return;}
     if(t.dataset.editProduct){editProduct(t.dataset.editProduct);return;}
     if(t.dataset.toggleProduct){const p=state.products.find(x=>x.id===t.dataset.toggleProduct);p.active=p.active===false;pushProduct(p);renderAdmin();renderProducts();toast("Ürün durumu güncellendi");return;}
@@ -440,5 +455,10 @@
   $("#mobileMenu").onclick=()=>{const nav=$("#categoryNav");const open=nav.classList.toggle("mobile-open");$("#mobileMenu").textContent=open?"×":"☰";};
   $("#categoryNav").addEventListener("click",()=>{$("#categoryNav").classList.remove("mobile-open");$("#mobileMenu").textContent="☰";});
 
+  // Diğer cihazlarda yapılan değişikliklerin sayfa yenilemeden görünmesi için:
+  // sekme öne geldiğinde ve her 60 saniyede bir merkezi veriler tazelenir (panel açıkken form durumunu bozmamak için atlanır).
+  function liveRefresh(){ if($("#adminApp").classList.contains("show"))return; if(document.hidden)return; bootstrap(); }
+  setInterval(liveRefresh,60000);
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden)liveRefresh(); });
   renderAll();renderAdminNav();bootstrap().then(handlePaymentReturn);
 })();
