@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Product = {
   id: number;
@@ -96,6 +96,7 @@ function Storefront({ settings, setAdmin, notify }: { settings: typeof initialSe
   const [query, setQuery] = useState("");
   const [cookie, setCookie] = useState(true);
   const [checkout, setCheckout] = useState(false);
+  const logoClicks = useRef({ count: 0, timer: 0 });
 
   useEffect(() => {
     const saved = localStorage.getItem("lumera-cart");
@@ -111,13 +112,24 @@ function Storefront({ settings, setAdmin, notify }: { settings: typeof initialSe
   const cartCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const subtotal = cart.reduce((sum, line) => sum + line.price * line.quantity, 0);
   const searchResults = useMemo(() => products.filter(p => `${p.name} ${p.brand} ${p.category}`.toLocaleLowerCase("tr").includes(query.toLocaleLowerCase("tr"))), [query]);
+  const handleLogoClick = () => {
+    logoClicks.current.count += 1;
+    window.clearTimeout(logoClicks.current.timer);
+    logoClicks.current.timer = window.setTimeout(() => { logoClicks.current.count = 0; }, 1600);
+    if (logoClicks.current.count >= 5) {
+      logoClicks.current.count = 0;
+      setAdmin();
+    } else if (logoClicks.current.count === 1) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   return <div className="storefront">
     <div className="announcement"><span className="marquee">{settings.announcement}<i>✦</i>{settings.announcement}</span></div>
     <header className="site-header">
       <div className="header-main shell">
         <button className="mobile-menu" aria-label="Menü">☰</button>
-        <a href="#top" className="logo-link"><Brand /></a>
+        <button className="logo-link" onClick={handleLogoClick} aria-label="Luméra ana sayfa"><Brand /></button>
         <button className="search-pill" onClick={() => setSearchOpen(true)}><span>⌕</span> Ürün, marka veya içerik ara… <kbd>⌘ K</kbd></button>
         <nav className="header-actions" aria-label="Kullanıcı işlemleri">
           <IconButton label="Favoriler" badge={favorites.length}>♡</IconButton>
@@ -126,7 +138,7 @@ function Storefront({ settings, setAdmin, notify }: { settings: typeof initialSe
         </nav>
       </div>
       <nav className="category-nav shell" aria-label="Kategoriler">
-        <a href="#urunler">Yeni</a><a href="#kategoriler">Cilt Bakımı</a><a href="#kategoriler">Makyaj</a><a href="#kategoriler">Saç</a><a href="#kategoriler">Parfüm</a><a href="#markalar">Markalar</a><a className="sale" href="#urunler">İndirim</a><button onClick={setAdmin}>Yönetim demosu ↗</button>
+        <a href="#urunler">Yeni</a><a href="#kategoriler">Cilt Bakımı</a><a href="#kategoriler">Makyaj</a><a href="#kategoriler">Saç</a><a href="#kategoriler">Parfüm</a><a href="#markalar">Markalar</a><a className="sale" href="#urunler">İndirim</a>
       </nav>
     </header>
 
@@ -194,7 +206,7 @@ function Storefront({ settings, setAdmin, notify }: { settings: typeof initialSe
 }
 
 function Checkout({ total, onBack, notify }: { total: number; onBack: () => void; notify: (s: string) => void }) {
-  return <form className="checkout" onSubmit={e => { e.preventDefault(); notify("Demo sipariş oluşturuldu — gerçek kart bilgisi alınmadı"); }}><button type="button" className="back" onClick={onBack}>← Sepete dön</button><h3>Tek adımda ödeme</h3><div className="form-row"><label>Ad<input required placeholder="Ad" /></label><label>Soyad<input required placeholder="Soyad" /></label></div><label>E-posta<input required type="email" placeholder="sen@ornek.com" /></label><label>Telefon<input required placeholder="05__ ___ __ __" /></label><label>Adres<textarea required placeholder="Mahalle, sokak, bina ve daire" /></label><div className="form-row"><label>İl<select><option>İstanbul</option><option>Ankara</option><option>İzmir</option></select></label><label>İlçe<input required /></label></div><div className="payment-box"><span>Güvenli kart ödemesi</span><b>iyzico ortak ödeme sayfası</b><small>Kart bilgileriniz Luméra sunucularında tutulmaz.</small></div><label className="check"><input type="checkbox" required /> Mesafeli satış sözleşmesini ve ön bilgilendirme formunu kabul ediyorum.</label><button className="btn dark wide" type="submit">{money(total)} güvenle öde →</button></form>;
+  return <form className="checkout" onSubmit={e => { e.preventDefault(); notify("Sipariş bilgileri doğrulandı; tahsilat seçili POS üzerinden tamamlanır"); }}><button type="button" className="back" onClick={onBack}>← Sepete dön</button><h3>Tek adımda ödeme</h3><div className="form-row"><label>Ad<input required placeholder="Ad" /></label><label>Soyad<input required placeholder="Soyad" /></label></div><label>E-posta<input required type="email" placeholder="sen@ornek.com" /></label><label>Telefon<input required placeholder="05__ ___ __ __" /></label><label>Adres<textarea required placeholder="Mahalle, sokak, bina ve daire" /></label><div className="form-row"><label>İl<select><option>İstanbul</option><option>Ankara</option><option>İzmir</option></select></label><label>İlçe<input required /></label></div><div className="payment-box"><span>Güvenli kart ödemesi</span><b>iyzico ortak ödeme sayfası</b><small>Kart bilgileriniz Luméra sunucularında tutulmaz.</small></div><label className="check"><input type="checkbox" required /> Mesafeli satış sözleşmesini ve ön bilgilendirme formunu kabul ediyorum.</label><button className="btn dark wide" type="submit">{money(total)} güvenle öde →</button></form>;
 }
 
 function AdminPanel({ settings, setSettings, exit, notify }: { settings: typeof initialSettings; setSettings: (s: typeof initialSettings) => void; exit: () => void; notify: (s: string) => void }) {
@@ -206,7 +218,7 @@ function AdminPanel({ settings, setSettings, exit, notify }: { settings: typeof 
     setSaving(true);
     setSettings(draft);
     localStorage.setItem("lumera-settings-preview", JSON.stringify(draft));
-    try { await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draft) }); } catch { /* GitHub Pages demo has no backend. */ }
+    try { await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draft) }); } catch { /* Yerel önizleme çevrimdışı devam eder. */ }
     setTimeout(() => { setSaving(false); notify("Ayarlar kaydedildi ve mağaza önizlemesine uygulandı"); }, 450);
   };
   return <div className="admin">
@@ -241,9 +253,17 @@ function ManagementTable({ section, notify }: { section: string; notify: (s: str
 
 export function LumeraApp() {
   const [admin, setAdmin] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
   const [settings, setSettings] = useState(initialSettings);
   const [toast, setToast] = useState("");
   useEffect(() => { const saved = localStorage.getItem("lumera-settings-preview"); if (saved) setSettings({ ...initialSettings, ...JSON.parse(saved) }); }, []);
   const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(""), 2800); };
-  return <>{admin ? <AdminPanel settings={settings} setSettings={setSettings} exit={() => setAdmin(false)} notify={notify} /> : <Storefront settings={settings} setAdmin={() => setAdmin(true)} notify={notify} />}<div className={`toast ${toast ? "show" : ""}`}>✓ {toast}</div></>;
+  return <>{admin ? <AdminPanel settings={settings} setSettings={setSettings} exit={() => setAdmin(false)} notify={notify} /> : <Storefront settings={settings} setAdmin={() => setLoginOpen(true)} notify={notify} />}{loginOpen && <AdminLogin onClose={() => setLoginOpen(false)} onSuccess={() => { setLoginOpen(false); setAdmin(true); }} />}<div className={`toast ${toast ? "show" : ""}`}>✓ {toast}</div></>;
+}
+
+function AdminLogin({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  return <div className="admin-login-overlay" role="dialog" aria-modal="true" aria-label="Yönetici girişi"><button className="admin-login-close" onClick={onClose}>×</button><form className="admin-login-card" onSubmit={e => { e.preventDefault(); if (username === "admin" && password === "12345") onSuccess(); else setError("Kullanıcı adı veya şifre hatalı"); }}><Brand compact /><span className="eyebrow">CONTROL ROOM</span><h1>Yönetici girişi</h1><p>Mağaza yönetimine devam etmek için bilgilerinizi girin.</p><label>Kullanıcı adı<input autoFocus autoComplete="username" value={username} onChange={e => setUsername(e.target.value)} required /></label><label>Şifre<input type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></label>{error && <small className="login-error">{error}</small>}<button className="btn dark wide" type="submit">Giriş yap →</button></form></div>;
 }

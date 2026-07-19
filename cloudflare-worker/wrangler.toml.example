@@ -1,0 +1,21 @@
+name = "lumera-commerce-api"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "lumera-commerce"
+database_id = "D1_DATABASE_ID"
+
+[vars]
+STOREFRONT_ORIGIN = "https://r0yc0ld.github.io"
+ADMIN_USERNAME = "admin"
+POS_PROVIDER = "iyzico"
+POS_TEST_MODE = "true"
+
+# Secret values are added with `wrangler secret put` and are never committed:
+# ADMIN_PASSWORD (initial value requested by the owner: 12345)
+# SESSION_SECRET
+# POS_API_KEY
+# POS_SECRET_KEY
+# POS_WEBHOOK_SECRET
