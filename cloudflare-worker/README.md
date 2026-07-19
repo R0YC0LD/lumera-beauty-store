@@ -1,4 +1,4 @@
-# Luméra Commerce API
+# Lumrea Commerce API
 
 GitHub Pages vitrini için Firebase kullanmadan hazırlanmış Cloudflare Workers + D1 veri katmanı.
 

@@ -14,14 +14,14 @@ const nunito = Nunito_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Luméra — Işığını Bul",
+  title: "Lumrea — Işığını Bul",
   description: "Seçilmiş kozmetik, cilt bakımı ve parfüm markalarını keşfedin. Güvenli ödeme, hızlı teslimat ve size özel güzellik ritüelleri.",
   icons: {
     icon: "/lumera-mark.svg",
     shortcut: "/lumera-mark.svg",
   },
   openGraph: {
-    title: "Luméra — Işığını Bul",
+    title: "Lumrea — Işığını Bul",
     description: "Güzelliğin yeni ışığı. Seçilmiş bakım, makyaj ve parfüm dünyası.",
     images: ["/og.png"],
   },

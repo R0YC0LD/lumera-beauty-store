@@ -133,7 +133,7 @@ CREATE INDEX IF NOT EXISTS reviews_status_idx ON reviews(status, created_at DESC
 CREATE INDEX IF NOT EXISTS orders_ptoken_idx ON orders(payment_token);
 
 INSERT OR IGNORE INTO store_settings(key,value) VALUES
-('store','{"announcement":"₺1.000 ve üzeri alışverişlerde kargo bizden · 14.00''e kadar aynı gün gönderim","heroEyebrow":"YENİ NESİL GÜZELLİK SEÇKİSİ","heroTitle":"Işığını bul.|Ritüelini yarat.","heroCopy":"Cildini dinleyen, dünyaya nazik ve sonuçlarıyla güçlü seçkiler.","shippingThreshold":1000,"loyaltyRate":5,"provider":"iyzico","threeDSecure":true,"testMode":true,"bankTransfer":true,"cashOnDelivery":false,"installments":[2,3,6,9],"seoTitle":"Luméra — Işığını Bul","seoDescription":"Seçilmiş güzellik ritüelleri ve güvenli alışveriş deneyimi."}');
+('store','{"announcement":"₺1.000 ve üzeri alışverişlerde kargo bizden · 14.00''e kadar aynı gün gönderim","heroEyebrow":"YENİ NESİL GÜZELLİK SEÇKİSİ","heroTitle":"Işığını bul.|Ritüelini yarat.","heroCopy":"Cildini dinleyen, dünyaya nazik ve sonuçlarıyla güçlü seçkiler.","shippingThreshold":1000,"loyaltyRate":5,"provider":"iyzico","threeDSecure":true,"testMode":true,"bankTransfer":true,"cashOnDelivery":false,"installments":[2,3,6,9],"seoTitle":"Lumrea — Işığını Bul","seoDescription":"Seçilmiş güzellik ritüelleri ve güvenli alışveriş deneyimi."}');
 
 INSERT OR IGNORE INTO products(id,name,brand,category,sku,price,old_price,stock,rating,badge,tags,tone,accent,color,description,ingredients,usage) VALUES
 ('p1','Barrier Cloud Nem Kremi','Aster Lab','Cilt Bakımı','AST-BC-50',649,799,46,4.9,'Çok Satan','["bestseller","sale"]','#f1dfd6','#fff5ef','#eaa084','Seramid desteğiyle cilt bariyerini konforla buluşturan yoğun nem kremi.','Seramid NP, skualan, panthenol','Sabah ve akşam temiz cilde uygulayın.'),

@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("builds the Luméra storefront source and worker", async () => {
+test("builds the Lumrea storefront source and worker", async () => {
   const [page, layout, app] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/lumera-app.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(layout, /Luméra — Işığını Bul/);
+  assert.match(layout, /Lumrea — Işığını Bul/);
   assert.match(page, /LumeraApp/);
   assert.match(app, /Işığını bul/);
   assert.match(app, /logoClicks/);
@@ -27,7 +27,7 @@ test("ships the complete GitHub Pages commerce app", async () => {
     readFile(new URL("../cloudflare-worker/src/index.js", import.meta.url), "utf8"),
     readFile(new URL("../cloudflare-worker/schema.sql", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /Luméra — Işığını Bul/);
+  assert.match(html, /Lumrea — Işığını Bul/);
   assert.match(html, /id="productGrid"/);
   assert.match(script, /Sanal POS/);
   assert.match(html, /id="adminLogin"/);

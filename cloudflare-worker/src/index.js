@@ -125,7 +125,7 @@ async function savePosCredentials(request, env, actor, cors) {
     const service = ["resend", "brevo"].includes(data.service) ? data.service : null;
     const apiKey = String(data.apiKey || "").trim();
     const fromEmail = String(data.fromEmail || "").trim().toLowerCase();
-    const fromName = String(data.fromName || "").trim().slice(0, 60) || "Luméra Beauty Store";
+    const fromName = String(data.fromName || "").trim().slice(0, 60) || "Lumrea Beauty Store";
     if (!service) return json({ error: "E-posta servisi seçin (Resend veya Brevo)" }, 400, cors);
     if (!apiKey) return json({ error: "API anahtarı zorunlu" }, 400, cors);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fromEmail)) return json({ error: "Geçerli bir gönderen e-posta adresi girin" }, 400, cors);
@@ -166,7 +166,7 @@ function orderEmailHtml(order, customer, items, statusKey, settings) {
   const support = [settings.supportEmail, settings.supportPhone].filter(Boolean).join(" · ");
   return `<!doctype html><html lang="tr"><body style="margin:0;padding:0;background:#f4efe9"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4efe9;padding:26px 0"><tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden">
-<tr><td style="background:#171419;padding:22px 32px"><span style="font:800 22px/1 Georgia,serif;color:#f3e2d5;letter-spacing:1px">luméra ✦</span><span style="font:700 9px/1 Arial,sans-serif;color:#9b8f87;letter-spacing:3px;padding-left:10px">BEAUTY STORE</span></td></tr>
+<tr><td style="background:#171419;padding:22px 32px"><span style="font:800 22px/1 Georgia,serif;color:#f3e2d5;letter-spacing:1px">lumrea ✦</span><span style="font:700 9px/1 Arial,sans-serif;color:#9b8f87;letter-spacing:3px;padding-left:10px">BEAUTY STORE</span></td></tr>
 <tr><td style="padding:34px 32px 8px"><h1 style="margin:0;font:800 24px/1.3 Arial,sans-serif;color:#171419">${copy.title}</h1>
 <p style="font:500 14px/1.7 Arial,sans-serif;color:#5d554f;margin:14px 0 0">Merhaba ${escapeHtml(customer.firstName || "değerli müşterimiz")}, <b>#${escapeHtml(order.order_no)}</b> numaralı siparişinle ilgili bir güncelleme var:</p>
 <p style="font:500 14px/1.7 Arial,sans-serif;color:#5d554f;margin:8px 0 0">${copy.body}</p></td></tr>
@@ -178,7 +178,7 @@ ${order.discount ? `<tr><td style="padding:10px 0 0;font:500 13px Arial,sans-ser
 </td></tr></table></td></tr>
 <tr><td style="padding:0 32px 26px"><p style="margin:0;font:700 11px/1 Arial,sans-serif;color:#9b8f87;letter-spacing:1px">TESLİMAT ADRESİ</p>
 <p style="margin:6px 0 0;font:500 13px/1.6 Arial,sans-serif;color:#5d554f">${escapeHtml(`${customer.firstName || ""} ${customer.lastName || ""}`.trim())}<br>${escapeHtml(order.shipping_address || "")}${customer.city ? `<br>${escapeHtml(customer.city)}` : ""}</p></td></tr>
-<tr><td style="background:#faf6f2;padding:18px 32px"><p style="margin:0;font:500 11px/1.7 Arial,sans-serif;color:#9b8f87">Bu e-posta #${escapeHtml(order.order_no)} numaralı siparişinle ilgili bilgilendirme amacıyla gönderildi.${support ? `<br>Destek: ${escapeHtml(support)}` : ""}<br>© Luméra Beauty Store</p></td></tr>
+<tr><td style="background:#faf6f2;padding:18px 32px"><p style="margin:0;font:500 11px/1.7 Arial,sans-serif;color:#9b8f87">Bu e-posta #${escapeHtml(order.order_no)} numaralı siparişinle ilgili bilgilendirme amacıyla gönderildi.${support ? `<br>Destek: ${escapeHtml(support)}` : ""}<br>© Lumrea Beauty Store</p></td></tr>
 </table></td></tr></table></body></html>`;
 }
 async function dispatchEmail(creds, to, subject, html) {
@@ -220,7 +220,7 @@ async function emailTest(request, env, actor, cors) {
   const sampleItems = [{ product_name: "Barrier Cloud Nem Kremi", unit_price: 649, quantity: 2 }];
   const settingsRow = await env.DB.prepare("SELECT value FROM store_settings WHERE key='store'").first();
   const settings = safeJson(settingsRow?.value, {});
-  const result = await dispatchEmail(creds, to, "Luméra e-posta testi — #LMR-TEST-00001 Numaralı Siparişin Hazırlanıyor", orderEmailHtml(sampleOrder, sampleCustomer, sampleItems, "preparing", settings));
+  const result = await dispatchEmail(creds, to, "Lumrea e-posta testi — #LMR-TEST-00001 Numaralı Siparişin Hazırlanıyor", orderEmailHtml(sampleOrder, sampleCustomer, sampleItems, "preparing", settings));
   await audit(env, actor, result.ok ? "email.test.sent" : "email.test.failed", "email", to, result.ok ? {} : { error: result.error });
   if (!result.ok) return json({ error: `Gönderilemedi: ${result.error}` }, 502, cors);
   return json({ ok: true }, 200, cors);
