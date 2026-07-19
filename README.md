@@ -48,7 +48,9 @@ npm test
 
 `cloudflare-worker/` dizini ücretsiz Cloudflare Workers + D1 API'sini ve veritabanı şemasını içerir. Tutulan veriler ürünler, stok, siparişler, müşteriler, bülten aboneleri, mağaza/POS ayarları ve denetim kayıtlarıdır.
 
-Worker yayınlandığında oluşan adres `github-pages/config.js` içindeki `apiBase` alanına eklenir. API bağlı değilken sepet ve düzenlemeler cihazda korunur; API bağlandığında merkezi D1 verileri kaynak olur.
+Canlı Worker adresi: https://lumera-commerce-api.lumera-beauty-store.workers.dev
+
+Bu adres `github-pages/config.js` içindeki `apiBase` alanına bağlıdır. Ürünler, siparişler, müşteriler, bülten kayıtları ve yönetim ayarları merkezi D1 veritabanında tutulur. Bağlantı geçici olarak kesilirse sepet ve cihazdaki tercihler korunur.
 
 ## Güvenlik
 

@@ -1,0 +1,14 @@
+name = "lumera-commerce-api"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "lumera-commerce"
+database_id = "ce0e33b2-1922-499a-80bb-e4f80089ba75"
+
+[vars]
+STOREFRONT_ORIGIN = "https://r0yc0ld.github.io"
+ADMIN_USERNAME = "admin"
+POS_PROVIDER = "iyzico"
+POS_TEST_MODE = "true"
