@@ -9,6 +9,7 @@ database_id = "ce0e33b2-1922-499a-80bb-e4f80089ba75"
 
 [vars]
 STOREFRONT_ORIGIN = "https://r0yc0ld.github.io"
+STOREFRONT_URL = "https://r0yc0ld.github.io/lumera-beauty-store/"
 ADMIN_USERNAME = "admin"
 POS_PROVIDER = "iyzico"
 POS_TEST_MODE = "true"

@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS products (
   description TEXT NOT NULL DEFAULT '',
   ingredients TEXT NOT NULL DEFAULT '',
   usage TEXT NOT NULL DEFAULT '',
+  image_url TEXT,
+  cost INTEGER,
+  variants TEXT NOT NULL DEFAULT '[]',
+  critical_stock INTEGER NOT NULL DEFAULT 20,
   active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -55,6 +59,8 @@ CREATE TABLE IF NOT EXISTS orders (
   payment_method TEXT NOT NULL,
   payment_status TEXT NOT NULL DEFAULT 'pending',
   shipping_address TEXT NOT NULL,
+  payment_token TEXT,
+  paid_at TEXT,
   consent_at TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -76,6 +82,12 @@ CREATE TABLE IF NOT EXISTS newsletter_subscribers (
   status TEXT NOT NULL DEFAULT 'active',
   consent_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   source TEXT NOT NULL DEFAULT 'storefront'
+);
+
+CREATE TABLE IF NOT EXISTS pos_credentials (
+  provider TEXT PRIMARY KEY,
+  data TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS coupons (
@@ -118,6 +130,7 @@ CREATE INDEX IF NOT EXISTS orders_status_idx ON orders(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS audit_created_idx ON audit_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS reviews_product_idx ON reviews(product_id, status);
 CREATE INDEX IF NOT EXISTS reviews_status_idx ON reviews(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS orders_ptoken_idx ON orders(payment_token);
 
 INSERT OR IGNORE INTO store_settings(key,value) VALUES
 ('store','{"announcement":"₺1.000 ve üzeri alışverişlerde kargo bizden · 14.00''e kadar aynı gün gönderim","heroEyebrow":"YENİ NESİL GÜZELLİK SEÇKİSİ","heroTitle":"Işığını bul.|Ritüelini yarat.","heroCopy":"Cildini dinleyen, dünyaya nazik ve sonuçlarıyla güçlü seçkiler.","shippingThreshold":1000,"loyaltyRate":5,"provider":"iyzico","threeDSecure":true,"testMode":true,"bankTransfer":true,"cashOnDelivery":false,"installments":[2,3,6,9],"seoTitle":"Luméra — Işığını Bul","seoDescription":"Seçilmiş güzellik ritüelleri ve güvenli alışveriş deneyimi."}');

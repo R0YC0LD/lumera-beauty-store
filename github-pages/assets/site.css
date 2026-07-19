@@ -34,3 +34,33 @@
 .admin-toolbar .button.outline{white-space:nowrap}
 .category-nav.mobile-open{display:flex !important;position:absolute;top:69px;left:0;right:0;height:auto;padding:20px;background:#fff;flex-wrap:wrap;z-index:40;box-shadow:0 18px 30px rgba(23,20,25,.12)}
 @media(max-width:900px){.review-fields{grid-template-columns:1fr}.coupon-row{flex-wrap:wrap}}
+
+/* v3: varyantlar, ürün görselleri, POS formları */
+.product-photo{width:100%;height:100%;object-fit:cover;border-radius:inherit;position:absolute;inset:0}
+.product-art{position:relative;overflow:hidden}
+.product-photo.detail{position:absolute;inset:0;border-radius:inherit}
+.detail-art{position:relative;overflow:hidden}
+.line-art{position:relative;overflow:hidden}
+.line-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.variant-tag{display:inline-block;margin-left:8px;background:#f0e7e0;border-radius:999px;padding:2px 9px;font:700 9px/1.4 "Manrope",sans-serif;color:#6f645d;vertical-align:middle}
+.variant-select{margin:14px 0}
+.variant-select>b{font:800 11px/1 "Manrope",sans-serif;letter-spacing:.5px}
+.variant-options{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.variant-option{border:1.5px solid #e2d9d3;background:#fff;border-radius:12px;padding:8px 14px;cursor:pointer;font:700 12px/1.2 "Manrope",sans-serif;display:grid;gap:2px;text-align:left}
+.variant-option small{font-weight:600;color:#8d8178}
+.variant-option.active{border-color:#171419;background:#171419;color:#fff}
+.variant-option.active small{color:#cfc7c0}
+.variant-option:disabled{opacity:.45;cursor:not-allowed}
+.payment-frame{width:100%;min-height:480px;border:0;border-radius:14px;margin-top:14px;background:#fff}
+.transfer-info code{display:inline-block;background:#171419;color:#fff;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:12px;letter-spacing:.5px}
+.category-row,.variant-row{display:grid;grid-template-columns:1.4fr 1.4fr auto auto auto;gap:8px;align-items:center;margin-bottom:8px}
+.variant-row{grid-template-columns:1.6fr 1fr 1fr auto}
+.category-row input[type="text"],.category-row input:not([type]),.variant-row input{border:1px solid #e2d9d3;border-radius:10px;padding:8px 10px;font:500 12px/1.3 "Manrope",sans-serif;min-width:0}
+.category-row input[type="color"]{width:34px;height:34px;border:1px solid #e2d9d3;border-radius:9px;padding:2px;background:#fff;cursor:pointer}
+.category-row button,.variant-row button{width:28px;height:28px;border:0;border-radius:50%;background:#f0e7e0;color:#6f645d;font-size:14px;cursor:pointer}
+.color-fields{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.color-fields>span{font:700 11px/1 "Manrope",sans-serif;letter-spacing:.4px}
+.color-fields label{display:flex;align-items:center;gap:6px;font:600 11px/1 "Manrope",sans-serif}
+.color-fields input[type="color"]{width:34px;height:34px;border:1px solid #e2d9d3;border-radius:9px;padding:2px;background:#fff;cursor:pointer}
+.settings-group h3 .status-pill{margin-left:8px;vertical-align:middle}
+@media(max-width:900px){.category-row{grid-template-columns:1fr 1fr auto auto auto}.variant-row{grid-template-columns:1fr 1fr 1fr auto}.payment-frame{min-height:560px}}
