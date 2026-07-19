@@ -329,6 +329,9 @@
     const orderFilter=$("#orderStatusFilter"); if(orderFilter)orderFilter.onchange=e=>{state.admin.orderStatus=e.target.value;renderAdmin();};
   }
   function variantRowHtml(v={name:"",price:"",stock:""}){ return `<div class="variant-row" data-variant-row><input name="vname" value="${esc(v.name)}" placeholder="Örn. 50 ml"><input name="vprice" type="number" min="0" value="${v.price}" placeholder="Fiyat ₺"><input name="vstock" type="number" min="0" value="${v.stock}" placeholder="Stok"><button type="button" data-variant-remove aria-label="Sil">×</button></div>`; }
+  function resizeImage(file){ return new Promise((resolve,reject)=>{ if(!file.type.startsWith("image/")){reject(new Error("Lütfen bir görsel dosyası seçin"));return;} const reader=new FileReader(); reader.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=1000; let w=img.width,h=img.height; if(w>max||h>max){const k=Math.min(max/w,max/h);w=Math.round(w*k);h=Math.round(h*k);} const canvas=document.createElement("canvas"); canvas.width=w; canvas.height=h; canvas.getContext("2d").drawImage(img,0,0,w,h); let out=canvas.toDataURL("image/webp",.82); if(!out.startsWith("data:image/webp")) out=canvas.toDataURL("image/jpeg",.85); resolve(out); }; img.onerror=()=>reject(new Error("Görsel okunamadı")); img.src=reader.result; }; reader.onerror=()=>reject(new Error("Dosya okunamadı")); reader.readAsDataURL(file); }); }
+  function isHostedImage(url){ return typeof url==="string" && url.includes("/api/images/"); }
+  function deleteHostedImage(url){ if(!isHostedImage(url)||!state.apiOnline||!state.token)return; const id=url.split("/api/images/").pop(); api(`/api/images/${encodeURIComponent(id)}`,{method:"DELETE"}).catch(()=>{}); }
   function editProduct(id){const isNew=!id;const p=id?state.products.find(x=>x.id===id):{id:uid("p"),name:"",brand:"",category:getCategories()[0]?.name||"Cilt Bakımı",price:0,oldPrice:null,stock:0,sku:"",rating:5,active:true,badge:"",tags:[],tone:"#ead7cf",accent:"#fff5ef",color:"#eaa084",description:"",ingredients:"",usage:"",imageUrl:null,variants:[],criticalStock:20};
     const cost=state.admin.costs[p.id];
     $("#pageContent").innerHTML=`<button class="round-close modal-close" data-close>×</button><span class="eyebrow">ÜRÜN YÖNETİMİ</span><h2>${isNew?"Yeni ürün":"Ürünü düzenle"}</h2><form id="productForm" class="form-grid"><input type="hidden" name="id" value="${p.id}">
@@ -343,7 +346,12 @@
     <label class="field">SKU<input name="sku" required value="${esc(p.sku)}"></label>
     <label class="field">Rozet<input name="badge" value="${esc(p.badge||"")}" placeholder="Çok Satan"></label>
     <label class="field">Etiketler (virgülle)<input name="tags" value="${esc((p.tags||[]).join(", "))}" placeholder="new, sale, bestseller"></label>
-    <label class="field full">Görsel URL (boşsa stil şişesi çizilir)<input name="imageUrl" value="${esc(p.imageUrl||"")}" placeholder="https://…/urun.webp"></label>
+    <div class="field full image-field"><span style="font:700 11px/1 Manrope,sans-serif;letter-spacing:.4px">ÜRÜN GÖRSELİ</span>
+    <div class="image-upload"><div class="image-preview" id="imagePreview">${p.imageUrl?`<img src="${esc(p.imageUrl)}" alt="">`:`<span>Görsel yok</span>`}</div>
+    <div class="image-actions"><label class="button outline image-pick">Görsel seç / değiştir<input type="file" id="imageFile" accept="image/*" hidden></label>
+    <button type="button" class="link-button" id="imageRemove" ${p.imageUrl?"":"style='display:none'"}>Görseli kaldır</button>
+    <input name="imageUrl" value="${esc(p.imageUrl||"")}" placeholder="veya hazır görsel URL'si yapıştırın">
+    <small>Seçilen dosya otomatik küçültülür (maks 1000 px, WebP) ve kaydederken buluta yüklenir; tüm cihazlarda anında görünür.</small></div></div></div>
     <div class="field color-fields"><span>Kart renkleri</span><label>Zemin<input name="tone" type="color" value="${p.tone}"></label><label>Vurgu<input name="accent" type="color" value="${p.accent}"></label><label>Ürün<input name="color" type="color" value="${p.color}"></label></div>
     <label class="field">Puan (yorum yoksa)<input name="rating" type="number" min="1" max="5" step="0.1" value="${p.rating}"></label>
     <label class="field full">Açıklama<textarea name="description" rows="3">${esc(p.description)}</textarea></label>
@@ -355,13 +363,21 @@
     openLayer($("#pageModal"));
     $("#addVariant").onclick=()=>{$("#variantRows").insertAdjacentHTML("beforeend",variantRowHtml());};
     $("#variantRows").addEventListener("click",e=>{const b=e.target.closest("[data-variant-remove]");if(b)b.closest("[data-variant-row]").remove();});
+    let pendingImage=null;
+    $("#imageFile").onchange=async e=>{const file=e.target.files[0];if(!file)return;try{pendingImage=await resizeImage(file);$("#imagePreview").innerHTML=`<img src="${pendingImage}" alt="">`;$("#imageRemove").style.display="";$('#productForm [name="imageUrl"]').value="";toast("Görsel hazır — kaydettiğinizde yüklenecek");}catch(err){toast(err.message,false);}};
+    $("#imageRemove").onclick=()=>{pendingImage=null;$("#imagePreview").innerHTML=`<span>Görsel yok</span>`;$('#productForm [name="imageUrl"]').value="";$("#imageRemove").style.display="none";};
     $("#productForm").onsubmit=async e=>{e.preventDefault();const value=Object.fromEntries(new FormData(e.target));
       const variants=$$("[data-variant-row]").map(row=>({name:row.querySelector('[name="vname"]').value.trim(),price:Number(row.querySelector('[name="vprice"]').value)||0,stock:Number(row.querySelector('[name="vstock"]').value)||0})).filter(v=>v.name);
-      const merged={...p,...value,price:Number(value.price)||0,oldPrice:value.oldPrice?Number(value.oldPrice):null,stock:Number(value.stock)||0,criticalStock:Number(value.criticalStock)||20,rating:Number(value.rating)||5,active:value.active==="on",tags:String(value.tags||"").split(",").map(t=>t.trim()).filter(Boolean),badge:value.badge||null,imageUrl:value.imageUrl||null,variants};
+      let imageUrl=String(value.imageUrl||"").trim()||null;
+      if(pendingImage){ if(!state.apiOnline||!state.token){toast("Görsel yüklemek için merkezi bağlantı gerekiyor",false);return;}
+        try{const up=await api("/api/images",{method:"POST",body:JSON.stringify({data:pendingImage})});imageUrl=up.url;}catch(err){toast(`Görsel yüklenemedi: ${err.message}`,false);return;} }
+      const merged={...p,...value,price:Number(value.price)||0,oldPrice:value.oldPrice?Number(value.oldPrice):null,stock:Number(value.stock)||0,criticalStock:Number(value.criticalStock)||20,rating:Number(value.rating)||5,active:value.active==="on",tags:String(value.tags||"").split(",").map(t=>t.trim()).filter(Boolean),badge:value.badge||null,imageUrl,variants};
       delete merged.cost;
       state.admin.costs[merged.id]=value.cost!==""?Number(value.cost):null;
       const exists=state.products.findIndex(x=>x.id===merged.id);if(exists>=0)state.products[exists]=merged;else state.products.unshift(merged);
-      await pushProduct(merged);closeLayers();renderProducts();renderAdmin();toast("Ürün kaydedildi");};}
+      await pushProduct(merged);
+      if(p.imageUrl&&p.imageUrl!==imageUrl)deleteHostedImage(p.imageUrl);
+      closeLayers();renderProducts();renderAdmin();toast("Ürün kaydedildi");};}
   function renderFooter(){ const s=state.settings; const social=$("#footerSocial"); if(social){ const links=[["Instagram",s.instagram],["TikTok",s.tiktok],["X",s.twitter]].filter(([,url])=>url); social.innerHTML=links.map(([label,url])=>`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${label} ↗</a>`).join(""); }
     const contact=$("#footerContact"); if(contact) contact.textContent=[s.supportEmail,s.supportPhone].filter(Boolean).join(" · "); }
   function renderAll(){renderCategories();renderProducts();renderHeader();renderCart();renderFavorites();renderFooter();}
@@ -396,7 +412,7 @@
     if(t.dataset.editProduct){editProduct(t.dataset.editProduct);return;}
     if(t.dataset.toggleProduct){const p=state.products.find(x=>x.id===t.dataset.toggleProduct);p.active=p.active===false;pushProduct(p);renderAdmin();renderProducts();toast("Ürün durumu güncellendi");return;}
     if(t.dataset.deleteProduct){const id=t.dataset.deleteProduct;const p=state.products.find(x=>x.id===id);if(!p)return;if(!confirm(`"${p.name}" ürünü kalıcı olarak silinsin mi?\n\nYorumları da silinir; geçmiş siparişlerdeki kayıtları korunur.`))return;
-      const removeLocal=()=>{state.products=state.products.filter(x=>x.id!==id);delete state.admin.costs[id];state.cart=state.cart.filter(l=>l.id!==id);state.favorites=state.favorites.filter(f=>f!==id);persist();renderProducts();renderCart();renderHeader();renderAdmin();toast(`${p.name} silindi`);};
+      const removeLocal=()=>{deleteHostedImage(p.imageUrl);state.products=state.products.filter(x=>x.id!==id);delete state.admin.costs[id];state.cart=state.cart.filter(l=>l.id!==id);state.favorites=state.favorites.filter(f=>f!==id);persist();renderProducts();renderCart();renderHeader();renderAdmin();toast(`${p.name} silindi`);};
       if(state.apiOnline&&state.token)api(`/api/products/${encodeURIComponent(id)}`,{method:"DELETE"}).then(removeLocal).catch(err=>toast(err.message,false));else removeLocal();return;}
     if(t.dataset.endSale){const p=state.products.find(x=>x.id===t.dataset.endSale);if(p&&p.oldPrice){p.price=p.oldPrice;p.oldPrice=null;p.tags=(p.tags||[]).filter(x=>x!=="sale");p.badge=null;pushProduct(p);renderProducts();renderAdmin();toast("Kampanya bitirildi");}return;}
     if(t.dataset.couponToggle){api(`/api/coupons/${encodeURIComponent(t.dataset.couponToggle)}`,{method:"PUT",body:JSON.stringify({...couponPayload(t.dataset.couponToggle),active:t.dataset.active!=="1"})}).then(()=>loadAdminData(true)).catch(err=>toast(err.message,false));return;}

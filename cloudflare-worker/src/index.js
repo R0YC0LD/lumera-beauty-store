@@ -15,6 +15,7 @@ export default {
       if (url.pathname === "/api/reviews" && request.method === "GET") return listPublicReviews(env, url.searchParams.get("product") || "", cors);
       if (url.pathname === "/api/reviews" && request.method === "POST") return createReview(request, env, cors);
       if (url.pathname === "/api/coupons/validate" && request.method === "POST") return validateCouponRequest(request, env, cors);
+      if (url.pathname.startsWith("/api/images/") && request.method === "GET") return serveImage(env, decodeURIComponent(url.pathname.split("/").pop()));
       if (url.pathname === "/api/payments/init" && request.method === "POST") return paymentInit(request, env, cors);
       if (url.pathname === "/api/payments/callback/iyzico") return iyzicoCallback(request, env, url);
       if (url.pathname === "/api/payments/webhook/paytr" && request.method === "POST") return paytrWebhook(request, env);
@@ -40,6 +41,8 @@ export default {
       if (url.pathname === "/api/pos/credentials" && request.method === "GET") return posCredentialStatus(env, cors);
       if (url.pathname === "/api/pos/credentials" && request.method === "PUT") return savePosCredentials(request, env, admin, cors);
       if (url.pathname === "/api/email/test" && request.method === "POST") return emailTest(request, env, admin, cors);
+      if (url.pathname === "/api/images" && request.method === "POST") return uploadImage(request, env, admin, cors);
+      if (url.pathname.startsWith("/api/images/") && request.method === "DELETE") return deleteImage(env, admin, decodeURIComponent(url.pathname.split("/").pop()), cors);
       return json({ error: "Endpoint bulunamadı" }, 404, cors);
     } catch (error) {
       console.error(error);
@@ -223,6 +226,30 @@ async function emailTest(request, env, actor, cors) {
   const result = await dispatchEmail(creds, to, "Lumrea e-posta testi — #LMR-TEST-00001 Numaralı Siparişin Hazırlanıyor", orderEmailHtml(sampleOrder, sampleCustomer, sampleItems, "preparing", settings));
   await audit(env, actor, result.ok ? "email.test.sent" : "email.test.failed", "email", to, result.ok ? {} : { error: result.error });
   if (!result.ok) return json({ error: `Gönderilemedi: ${result.error}` }, 502, cors);
+  return json({ ok: true }, 200, cors);
+}
+
+// ---- Ürün görselleri: panelden yüklenir, D1'de saklanır, önbellekli servis edilir ----
+async function uploadImage(request, env, actor, cors) {
+  const data = await body(request);
+  const match = /^data:(image\/(?:webp|jpeg|png|gif));base64,([A-Za-z0-9+/=]+)$/.exec(String(data.data || ""));
+  if (!match) return json({ error: "Geçersiz görsel verisi" }, 400, cors);
+  const [, contentType, base64] = match;
+  if (base64.length > 1_400_000) return json({ error: "Görsel çok büyük (en fazla ~1 MB). Daha küçük bir görsel seçin." }, 413, cors);
+  const id = `img_${crypto.randomUUID().replaceAll("-", "").slice(0, 16)}`;
+  await env.DB.prepare("INSERT INTO images(id,data,content_type,size) VALUES(?,?,?,?)").bind(id, base64, contentType, Math.round(base64.length * 3 / 4)).run();
+  await audit(env, actor, "image.uploaded", "image", id, { contentType, size: Math.round(base64.length * 3 / 4) });
+  return json({ id, url: `${new URL(request.url).origin}/api/images/${id}` }, 201, cors);
+}
+async function serveImage(env, id) {
+  const row = await env.DB.prepare("SELECT data, content_type FROM images WHERE id = ?").bind(id).first();
+  if (!row) return new Response("Not found", { status: 404 });
+  const bytes = fromBase64(row.data);
+  return new Response(bytes, { headers: { "Content-Type": row.content_type, "Cache-Control": "public, max-age=31536000, immutable", "Access-Control-Allow-Origin": "*" } });
+}
+async function deleteImage(env, actor, id, cors) {
+  await env.DB.prepare("DELETE FROM images WHERE id = ?").bind(id).run();
+  await audit(env, actor, "image.deleted", "image", id, {});
   return json({ ok: true }, 200, cors);
 }
 
