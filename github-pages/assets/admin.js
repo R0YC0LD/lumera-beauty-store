@@ -2,7 +2,6 @@
 (() => {
   "use strict";
 
-  $$("[data-swan]").forEach(el => { el.innerHTML = swanMark; });
 
   const adminModules = [
     ["dashboard", "Genel Bakış"],

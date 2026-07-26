@@ -10,7 +10,6 @@ const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 const dateTr = v => v ? new Date(v.includes("T") || v.includes(" ") ? v.replace(" ", "T") + (v.endsWith("Z") ? "" : "Z") : v).toLocaleString("tr-TR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
 
 /* ---------- marka: kuğu logosu ve ikonlar ---------- */
-const swanMark = `<svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M33 18 C29 18 26 21 26 25 C26 28 28 30 30 31 C27 33 24 37 24 42 C24 50 30 55 38 58 C33 60 28 64 26 70 C24 76 27 82 35 84 C45 87 58 86 66 80 C70 77 71 72 69 68 C75 66 82 62 87 55 C83 57 78 57 74 55 C79 52 84 46 86 39 C82 42 77 43 73 42 C78 38 81 31 80 24 C77 30 72 33 67 34 C68 28 66 22 61 19 C64 24 64 30 61 34 C57 30 52 30 48 33 C48 28 45 23 40 21 C39 25 39 29 41 32 C38 29 35 24 33 18 Z"/></svg>`;
 const hangerSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6a2 2 0 1 1 2-2"/><path d="M12 6l-9 7.5a1.4 1.4 0 0 0 .9 2.5h16.2a1.4 1.4 0 0 0 .9-2.5L12 6z"/></svg>`;
 const comboSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 5 6l1.3 1.6L8 6.5V14a1 1 0 0 0 1 1h1"/><path d="M16 3l3 3-1.3 1.6L16 6.5V21"/><path d="M6.5 21v-6.5A2.5 2.5 0 0 1 9 12h1"/></svg>`;
 const CATEGORY_ICONS = { "Kombin": comboSvg };

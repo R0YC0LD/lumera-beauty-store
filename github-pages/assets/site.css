@@ -65,12 +65,12 @@ body.locked{overflow:hidden}
 .brand{display:flex;align-items:center;gap:10px}
 .brand span{font-family:var(--serif);font-size:23px;font-weight:600;letter-spacing:4px}
 .brand small{font-size:8.5px;font-weight:800;letter-spacing:3px;color:var(--muted);align-self:flex-end;padding-bottom:5px}
-.brand-mark{display:grid;place-items:center;color:var(--accent)}
-.brand .brand-mark svg{width:27px;height:27px}
+.brand-mark{display:inline-block;background-color:var(--accent);-webkit-mask:url("swan-mark.png") center/contain no-repeat;mask:url("swan-mark.png") center/contain no-repeat}
+.brand .brand-mark{width:27px;height:27px}
 .login-brand,.admin-logo,.footer-brand{display:flex;align-items:center;gap:10px}
-.login-brand .brand-mark svg,.footer-brand .brand-mark svg{width:25px;height:25px}
-.admin-logo .brand-mark svg{width:22px;height:22px}
-.admin-logo .brand-mark,.footer-brand .brand-mark{color:#dd9a63}
+.login-brand .brand-mark,.footer-brand .brand-mark{width:25px;height:25px}
+.admin-logo .brand-mark{width:22px;height:22px}
+.admin-logo .brand-mark,.footer-brand .brand-mark{background-color:#dd9a63}
 .admin-logo{flex-wrap:wrap}
 .admin-logo small{flex-basis:100%}
 .search-trigger{flex:1;max-width:430px;margin-left:auto;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:10px 18px;color:var(--muted);font-size:13px;transition:.2s}
@@ -415,12 +415,9 @@ svg{display:block}
 select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23221610' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:14px;padding-right:34px}
 
 /* ---------- kuğu logosu ---------- */
-.brand-mark svg,.hero-swan svg,.statement-swan svg{display:block}
-.hero-swan{position:relative;z-index:1;transform:none !important;width:100%}
-.hero-swan svg{width:min(220px,60%);height:auto;margin:auto;color:#8a4a20}
+.hero-swan{position:relative;z-index:1;width:min(220px,60%);aspect-ratio:279/335;margin:auto;background-color:#8a4a20;-webkit-mask:url("swan-mark.png") center/contain no-repeat;mask:url("swan-mark.png") center/contain no-repeat}
 .hero-panel{display:grid;place-items:center}
-.statement-swan{display:block;margin:0 auto 10px}
-.statement-swan svg{width:56px;height:56px;color:#dd9a63;margin:auto}
+.statement-swan{display:block;margin:0 auto 10px;width:56px;height:56px;background-color:#dd9a63;-webkit-mask:url("swan-mark.png") center/contain no-repeat;mask:url("swan-mark.png") center/contain no-repeat}
 
 /* ---------- kategori çipleri ---------- */
 .category-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}

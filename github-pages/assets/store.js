@@ -2,8 +2,6 @@
 (() => {
   "use strict";
 
-  /* kuğu logosunu yerleştir */
-  $$("[data-swan]").forEach(el => { el.innerHTML = swanMark; });
 
   /* ---------- render ---------- */
   function renderGenders() {
