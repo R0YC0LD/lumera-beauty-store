@@ -1,4 +1,3 @@
 User-agent: *
 Allow: /
-
-Sitemap: https://lumrea.com/sitemap.xml
+Disallow: /admin.html

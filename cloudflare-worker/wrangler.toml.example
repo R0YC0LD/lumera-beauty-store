@@ -1,21 +1,18 @@
-name = "lumera-commerce-api"
+# Bu dosyayı "wrangler.toml" adıyla kopyalayın ve database_id alanını doldurun.
+name = "lumrea-api"
 main = "src/index.js"
-compatibility_date = "2026-07-01"
+compatibility_date = "2026-01-01"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "lumera-commerce"
-database_id = "D1_DATABASE_ID"
+database_name = "lumrea-db"
+database_id = "BURAYA-D1-DATABASE-ID-GELECEK"
 
 [vars]
-STOREFRONT_ORIGIN = "https://r0yc0ld.github.io"
-ADMIN_USERNAME = "admin"
-POS_PROVIDER = "iyzico"
-POS_TEST_MODE = "true"
+# Kart ödemesi sonrası müşterinin geri yönlendirileceği mağaza adresi
+STOREFRONT_URL = "https://lumrea.com/"
 
-# Secret values are added with `wrangler secret put` and are never committed:
-# ADMIN_PASSWORD (initial value requested by the owner: 12345)
-# SESSION_SECRET
-# POS_API_KEY
-# POS_SECRET_KEY
-# POS_WEBHOOK_SECRET
+# Gizli değerler dosyaya YAZILMAZ, şu komutlarla eklenir:
+#   wrangler secret put ADMIN_PASSWORD
+#   wrangler secret put SESSION_SECRET
+# İsteğe bağlı: ADMIN_USERNAME (varsayılan: admin)

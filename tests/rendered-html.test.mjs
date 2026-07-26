@@ -20,28 +20,29 @@ test("builds the Lumrea storefront source and worker", async () => {
 });
 
 test("ships the complete GitHub Pages commerce app", async () => {
-  const [html, script, css, worker, schema] = await Promise.all([
+  const [html, admin, store, adminJs, css, worker, schema] = await Promise.all([
     readFile(new URL("../github-pages/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../github-pages/assets/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../github-pages/admin.html", import.meta.url), "utf8"),
+    readFile(new URL("../github-pages/assets/store.js", import.meta.url), "utf8"),
+    readFile(new URL("../github-pages/assets/admin.js", import.meta.url), "utf8"),
     readFile(new URL("../github-pages/assets/site.css", import.meta.url), "utf8"),
     readFile(new URL("../cloudflare-worker/src/index.js", import.meta.url), "utf8"),
     readFile(new URL("../cloudflare-worker/schema.sql", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /Lumrea — Işığını Bul/);
+  assert.match(html, /LUMREA — Sade Giyin, Asil Kal/);
   assert.match(html, /id="productGrid"/);
-  assert.match(script, /Sanal POS/);
-  assert.match(html, /id="adminLogin"/);
-  assert.match(script, /logoClicks>=5/);
-  assert.match(script, /username!=="admin"\|\|password!=="12345"/);
-  assert.match(script, /\/api\/orders/);
-  assert.match(css, /@media\(max-width:900px\)/);
+  assert.match(admin, /id="adminLogin"/);
+  assert.match(store, /logoClicks >= 5/);
+  assert.match(adminJs, /username !== "admin" \|\| password !== "12345"/);
+  assert.match(store, /\/api\/orders/);
+  assert.match(css, /@media \(max-width:720px\)/);
   assert.match(worker, /SESSION_SECRET/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS orders/);
-  assert.doesNotMatch(`${html}${script}`, /Yönetim demosu/);
+  assert.doesNotMatch(`${html}${store}`, /Yönetim demosu/);
 });
 
 test("root copy served by GitHub Pages matches github-pages source", async () => {
-  for (const file of ["index.html", "404.html", "config.js", "assets/app.js", "assets/site.css", "CNAME", "robots.txt", "sitemap.xml"]) {
+  for (const file of ["index.html", "admin.html", "404.html", "config.js", "assets/common.js", "assets/admin.js", "assets/store.js", "assets/site.css", "CNAME", "robots.txt", "sitemap.xml"]) {
     const [root, source] = await Promise.all([
       readFile(new URL(`../${file}`, import.meta.url), "utf8"),
       readFile(new URL(`../github-pages/${file}`, import.meta.url), "utf8"),

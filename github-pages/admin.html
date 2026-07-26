@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LUMREA — Yönetim Paneli</title>
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23221610'/%3E%3Cg transform='translate(4 4) scale(.56)' fill='%23e08a4e'%3E%3Cpath d='M33 18 C29 18 26 21 26 25 C26 28 28 30 30 31 C27 33 24 37 24 42 C24 50 30 55 38 58 C33 60 28 64 26 70 C24 76 27 82 35 84 C45 87 58 86 66 80 C70 77 71 72 69 68 C75 66 82 62 87 55 C83 57 78 57 74 55 C79 52 84 46 86 39 C82 42 77 43 73 42 C78 38 81 31 80 24 C77 30 72 33 67 34 C68 28 66 22 61 19 C64 24 64 30 61 34 C57 30 52 30 48 33 C48 28 45 23 40 21 C39 25 39 29 41 32 C38 29 35 24 33 18 Z'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/site.css?v=4">
+  <script src="config.js?v=4"></script>
+  <script src="assets/common.js?v=4" defer></script>
+  <script src="assets/admin.js?v=4" defer></script>
+</head>
+<body class="admin-body">
+
+  <section class="login-screen show" id="adminLogin" aria-label="Yönetici girişi">
+    <a class="round-close" id="closeLogin" href="index.html" aria-label="Mağazaya dön">×</a>
+    <form id="loginForm" class="login-card">
+      <div class="login-brand"><i class="brand-mark" data-swan></i>LUMREA</div>
+      <span class="eyebrow">YÖNETİM PANELİ</span>
+      <h1>Yönetici girişi</h1>
+      <p>Mağaza yönetimine devam etmek için bilgilerinizi girin.</p>
+      <label>Kullanıcı adı<input id="adminUsername" autocomplete="username" required></label>
+      <label>Şifre<div class="password-field"><input id="adminPassword" type="password" autocomplete="current-password" required><button type="button" id="showPassword">Göster</button></div></label>
+      <button class="button dark full" type="submit">Giriş yap →</button>
+      <small id="loginMessage">Güvenli yönetim oturumu</small>
+    </form>
+  </section>
+
+  <section class="admin-app" id="adminApp">
+    <aside class="admin-sidebar">
+      <div class="admin-logo"><i class="brand-mark" data-swan></i>LUMREA<small>YÖNETİM PANELİ</small></div>
+      <nav id="adminNav"></nav>
+      <div class="storage-state"><i id="storageDot"></i><span><b id="storageLabel">Veri katmanı</b><small id="storageDetail">Bağlantı kontrol ediliyor</small></span></div>
+      <button class="admin-exit" id="adminLogout">Çıkış yap</button>
+    </aside>
+    <main class="admin-main">
+      <header class="admin-top">
+        <div><span class="eyebrow">LUMREA YÖNETİM</span><h1 id="adminTitle">Genel Bakış</h1></div>
+        <div><a class="button outline" href="index.html" target="_blank" rel="noopener">Mağazayı görüntüle ↗</a></div>
+      </header>
+      <div id="adminContent"></div>
+    </main>
+  </section>
+
+  <div class="toast" id="toast" role="status"></div>
+  <noscript>Yönetim panelini kullanmak için JavaScript'i etkinleştirin.</noscript>
+</body>
+</html>

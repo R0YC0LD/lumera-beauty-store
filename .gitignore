@@ -42,3 +42,8 @@ next-env.d.ts
 .wrangler/
 /outputs/
 /work/
+
+# windows / lumrea storefront
+Thumbs.db
+desktop.ini
+cloudflare-worker/wrangler.toml
