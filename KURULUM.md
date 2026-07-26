@@ -2,9 +2,95 @@
 
 ## Site şu an nasıl çalışıyor?
 
-`index.html` dosyasına çift tıklayın — site hemen açılır ve örnek ürünlerle çalışır.
-Bulut kurulmadan önce veriler yalnızca o tarayıcıda saklanır (tek cihaz modu).
-Bulut kurulunca **tüm cihazlar aynı veriyi görür ve birkaç saniye içinde otomatik eşitlenir.**
+`config.js` içinde bir Firebase projesi (`lumrea-8fa20`) tanımlı — bu yüzden site artık
+**Firestore ile bulut modunda** çalışıyor: admin panelinden yapılan her değişiklik
+(ürün, stok, fiyat, sipariş durumu) **anlık olarak** tüm cihazlara/telefonlara otomatik
+yansır (Firestore gerçek zamanlı dinleyicileri sayesinde, yoklama/bekleme yok).
+
+Firebase Console'da **tamamlamanız gereken tek seferlik kurulum adımları** aşağıda —
+bunlar yapılmadan Firestore/Storage istekleri "izin reddedildi" hatası verir:
+
+### 1. Firestore veritabanını oluşturun
+Firebase Console → `lumrea-8fa20` projesi → **Firestore Database** → **Create database**
+→ bir bölge seçip (örn. `eur3`) **Production mode** ile oluşturun.
+
+### 2. Firestore güvenlik kurallarını yapıştırın
+Firestore Database → **Rules** sekmesi → aşağıdakini yapıştırıp **Publish**'e basın:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /products/{id} {
+      allow get, list: if true;
+      allow create, delete: if request.auth != null;
+      allow update: if request.auth != null
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sizes']);
+    }
+    match /settings/{id} {
+      allow get, list: if true;
+      allow write: if request.auth != null;
+    }
+    match /coupons/{code} {
+      allow get: if true;
+      allow list: if request.auth != null;
+      allow create, delete: if request.auth != null;
+      allow update: if request.auth != null
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['used_count'])
+            && request.resource.data.used_count == resource.data.used_count + 1);
+    }
+    match /reviews/{id} {
+      allow get, list: if true;
+      allow create: if request.resource.data.status == "pending";
+      allow update, delete: if request.auth != null;
+    }
+    match /subscribers/{id} {
+      allow create: if true;
+      allow get, list, update, delete: if request.auth != null;
+    }
+    match /orders/{id} {
+      allow create: if true;
+      allow get, list, update, delete: if request.auth != null;
+    }
+    match /audit/{id} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+
+Bu kurallar: ürünler/ayarlar/onaylı yorumlar herkese açık okunur; sipariş oluşturma ve
+bültene kayıt girişte oturum gerektirmez; stok düşümü ve kupon kullanım sayacı yalnızca
+ilgili tek alanı değiştiren dar bir istisnayla girişsiz yapılabilir; geri kalan her şey
+(ürün/ayar/kupon/yorum onayı/sipariş görüntüleme/denetim kaydı) yalnızca giriş yapmış
+yönetici için açıktır.
+
+### 3. Storage'ı açın (ürün görseli yükleme için)
+Firebase Console → **Storage** → **Get started** → Production mode. Sonra **Rules**
+sekmesine şunu yapıştırın:
+
+```
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /products/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
+```
+
+### 4. Yönetici hesabı oluşturun
+Firebase Console → **Authentication** → **Get started** → **Sign-in method** →
+**Email/Password**'ü etkinleştirin. Sonra **Users** sekmesi → **Add user** → kendi
+e-posta adresinizi ve güçlü bir şifre girin. Admin panelinde **"Kullanıcı adı"** alanına
+bu e-postayı, **"Şifre"** alanına bu şifreyi yazacaksınız (Firebase e-posta formatı
+gerektirir — `admin`/`12345` yerel/bulutsuz moddayken hâlâ çalışır, ama Firebase
+etkinken güvenlik için gerçek e-posta/şifreyle giriş yapmanız gerekir).
+
+Bu 4 adım tamamlanınca site zaten canlı — ekstra deploy/derleme gerekmez, sadece sayfayı
+yenileyin.
 
 ## Admin paneline giriş
 
@@ -13,8 +99,9 @@ Yönetim paneli ayrı bir sayfadır: **`admin.html`**
 1. Doğrudan `admin.html` dosyasını açın (siteyse `siteadresi/admin.html`),
 2. veya mağazada **LUMREA logosuna arka arkaya 5 kez** tıklayın.
 
-Varsayılan giriş: kullanıcı adı `admin`, şifre `12345`
-(Bulut kurulduktan sonra şifre, Cloudflare'a eklediğiniz `ADMIN_PASSWORD` olur — güçlü bir şifre seçin.)
+Firebase kurulumu tamamlandıktan sonra: yukarıda oluşturduğunuz **e-posta ve şifre**
+ile giriş yapın. Firebase kurulmadan önce (veya Firestore/Storage adımları eksikken):
+kullanıcı adı `admin`, şifre `12345` ile yerel/tek cihaz modunda deneyebilirsiniz.
 
 ## Admin panelinde neler var? (14 modül)
 
@@ -34,6 +121,14 @@ Varsayılan giriş: kullanıcı adı `admin`, şifre `12345`
 - **Denetim Kaydı** — bulutta kim ne zaman ne değiştirdi (bulut kurulunca aktif)
 
 ## Sanal POS (kartla ödeme) — otomatik aktifleşir
+
+> **Not:** Firestore, tarayıcıdan doğrudan bağlanılan bir veritabanıdır; iyzico/PayTR
+> gibi API anahtarlarını güvenle saklayıp banka webhook'unu karşılayacak bir **sunucu**
+> değildir. Kartla ödeme için hâlâ `cloudflare-worker/` klasöründeki Cloudflare Worker'ı
+> ayrıca kurmanız gerekir (aşağıdaki "Bulut kurulumu" bölümü) — Firestore bunun yerine
+> geçmez, ürün/sipariş/stok senkronizasyonunu sağlar. Worker kurulu değilken Sanal POS
+> formunu kaydetmeye çalışırsanız açıklayıcı bir hata görürsünüz, müşteri yine de
+> Havale/EFT veya kapıda ödemeyle sipariş verebilir.
 
 Kartla ödeme almak için bulut kurulumunun tamamlanmış olması gerekir. Sonrası çok basit:
 

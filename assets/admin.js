@@ -33,9 +33,9 @@
     return false;
   }
   function showLogin() { sessionStorage.removeItem("lumrea_local_admin"); $("#adminApp").classList.remove("show"); $("#adminLogin").classList.add("show"); setTimeout(() => $("#adminUsername").focus(), 100); }
-  function showAdmin() { if (!CONFIG.apiBase) sessionStorage.setItem("lumrea_local_admin", "1"); $("#adminLogin").classList.remove("show"); $("#adminApp").classList.add("show"); state.adminView = "dashboard"; loadAdminData(); renderAdmin(); }
+  function showAdmin() { if (!cloudAvailable()) sessionStorage.setItem("lumrea_local_admin", "1"); $("#adminLogin").classList.remove("show"); $("#adminApp").classList.add("show"); state.adminView = "dashboard"; loadAdminData(); renderAdmin(); }
   async function login(username, password) {
-    if (CONFIG.apiBase) {
+    if (cloudAvailable()) {
       try {
         const data = await api("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
         state.token = data.token; sessionStorage.setItem("lumrea_admin_token", data.token);
@@ -839,10 +839,20 @@
 
   /* ---------- başlangıç ---------- */
   setStorageIndicator(false);
+  if (window.LumreaCloud && window.LumreaCloud.ready) {
+    window.LumreaCloud.onAuth(async user => {
+      if (user && !$("#adminApp").classList.contains("show")) {
+        state.token = await user.getIdToken();
+        sessionStorage.setItem("lumrea_admin_token", state.token);
+        state.apiOnline = true; setStorageIndicator(true);
+        showAdmin();
+      }
+    });
+  }
   (async () => {
     await bootstrapData();
     if (state.token && state.apiOnline) showAdmin();
-    else if (!CONFIG.apiBase && sessionStorage.getItem("lumrea_local_admin") === "1") showAdmin();
+    else if (!cloudAvailable() && sessionStorage.getItem("lumrea_local_admin") === "1") showAdmin();
     startSync();
   })();
 })();

@@ -133,7 +133,18 @@ function openLayer(el) { closeLayers(); $("#overlay")?.classList.add("show"); el
 function closeLayers() { $$(".drawer.show,.modal.show,.search-modal.show").forEach(el => el.classList.remove("show")); $("#overlay")?.classList.remove("show"); document.body.classList.remove("locked"); }
 
 /* ---------- API ---------- */
+const cloudReady = () => Boolean(window.LumreaCloud && window.LumreaCloud.ready);
+const cloudAvailable = () => Boolean(CONFIG.apiBase) || cloudReady();
+const FIREBASE_ERROR_TR = {
+  "auth/invalid-credential": "Kullanıcı adı veya şifre hatalı",
+  "auth/wrong-password": "Kullanıcı adı veya şifre hatalı",
+  "auth/user-not-found": "Kullanıcı adı veya şifre hatalı",
+  "auth/invalid-email": "Geçerli bir e-posta adresi girin (Firebase kullanıcı adı olarak e-posta gerekir)",
+  "auth/too-many-requests": "Çok fazla hatalı deneme — biraz sonra tekrar deneyin",
+  "auth/network-request-failed": "Sunucuya ulaşılamadı — internet bağlantınızı kontrol edin"
+};
 async function api(path, options = {}) {
+  if (cloudReady()) return apiCloud(path, options);
   if (!CONFIG.apiBase) throw new Error("API_NOT_CONFIGURED");
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
@@ -144,17 +155,66 @@ async function api(path, options = {}) {
   if (!response.ok) { const err = new Error(data.error || "İşlem tamamlanamadı"); err.status = response.status; throw err; }
   return data;
 }
+async function apiCloud(path, options = {}) {
+  const cloud = window.LumreaCloud;
+  const method = options.method || "GET";
+  const body = options.body ? JSON.parse(options.body) : null;
+  const [clean, qs] = path.split("?");
+  const seg = clean.split("/").filter(Boolean); // ["api","products",":id"]
+  try {
+    if (clean === "/api/auth/login" && method === "POST") return { token: await cloud.login(body.username, body.password) };
+    if (clean === "/api/bootstrap") {
+      const [products, settings, reviews] = await Promise.all([cloud.getProducts(), cloud.getSettings(), cloud.getReviews()]);
+      const approved = (reviews || []).filter(r => r.status === "approved");
+      const stats = {};
+      approved.forEach(r => { (stats[r.product_id] ||= { count: 0, sum: 0 }).count++; stats[r.product_id].sum += Number(r.rating) || 0; });
+      const reviewStats = Object.fromEntries(Object.entries(stats).map(([k, v]) => [k, { count: v.count, avg: Math.round(v.sum / v.count * 10) / 10 }]));
+      return { products, settings, reviewStats, pos: {}, v: Date.now() };
+    }
+    if (clean === "/api/sync") return { v: Date.now() };
+    if (clean === "/api/products/full") return { products: await cloud.getProducts() };
+    if (seg[1] === "products" && seg[2] && method === "PUT") { await cloud.saveProduct({ id: decodeURIComponent(seg[2]), ...body }); return {}; }
+    if (seg[1] === "products" && seg[2] && method === "DELETE") { await cloud.deleteProduct(decodeURIComponent(seg[2])); return {}; }
+    if (clean === "/api/orders" && method === "GET") return { orders: await cloud.getOrders() };
+    if (clean === "/api/orders" && method === "POST") return { order: await cloud.createOrder(body) };
+    if (seg[1] === "orders" && seg[2] && method === "PATCH") { await cloud.updateOrder(decodeURIComponent(seg[2]), body); return {}; }
+    if (clean === "/api/coupons" && method === "GET") return { coupons: await cloud.getCoupons() };
+    if (clean === "/api/coupons/validate" && method === "POST") {
+      const r = await cloud.validateCoupon(body.code, body.total);
+      if (r.error) throw new Error(r.error);
+      return r;
+    }
+    if (seg[1] === "coupons" && seg[2] && method === "PUT") { await cloud.saveCoupon({ code: decodeURIComponent(seg[2]), ...body }); return {}; }
+    if (seg[1] === "coupons" && seg[2] && method === "DELETE") { await cloud.deleteCoupon(decodeURIComponent(seg[2])); return {}; }
+    if (clean === "/api/reviews/all") return { reviews: await cloud.getReviews() };
+    if (clean === "/api/reviews" && method === "POST") { await cloud.addReview(body); return {}; }
+    if (clean === "/api/reviews" && method === "GET") return { reviews: await cloud.getReviews(new URLSearchParams(qs).get("product")) };
+    if (seg[1] === "reviews" && seg[2] && method === "PATCH") { await cloud.updateReview(decodeURIComponent(seg[2]), body); return {}; }
+    if (seg[1] === "reviews" && seg[2] && method === "DELETE") { await cloud.deleteReview(decodeURIComponent(seg[2])); return {}; }
+    if (clean === "/api/newsletter" && method === "GET") return { subscribers: await cloud.getSubscribers() };
+    if (clean === "/api/newsletter" && method === "POST") { await cloud.addSubscriber(body.email); return {}; }
+    if (clean === "/api/settings" && method === "PUT") { await cloud.saveSettings(body); return {}; }
+    if (clean === "/api/audit") return { audit: await cloud.getAudit() };
+    if (clean === "/api/images" && method === "POST") return { url: await cloud.uploadImage(body.data) };
+  } catch (err) {
+    if (err.code === "auth/network-request-failed") err.network = true;
+    if (FIREBASE_ERROR_TR[err.code]) err.message = FIREBASE_ERROR_TR[err.code];
+    throw err;
+  }
+  const err = new Error("Bu işlem Firebase modunda henüz desteklenmiyor (Sanal POS/kart ödemesi için Cloudflare Worker kurulumu gerekir — KURULUM.md)");
+  throw err;
+}
 function setStorageIndicator(online) {
   const dot = $("#storageDot"), label = $("#storageLabel"), detail = $("#storageDetail");
   if (!dot) return;
   dot.classList.toggle("online", online);
   label.textContent = online ? "Bulut bağlı" : "Yerel mod";
-  detail.textContent = online ? "Tüm cihazlar otomatik eşitleniyor" : CONFIG.apiBase ? "Bağlantı bekleniyor" : "Bulut henüz kurulmadı";
+  detail.textContent = online ? "Tüm cihazlar otomatik eşitleniyor" : cloudAvailable() ? "Bağlantı bekleniyor" : "Bulut henüz kurulmadı";
 }
 
 /* ---------- bulut eşitleme ---------- */
 async function bootstrapData(silent = true) {
-  if (!CONFIG.apiBase) { setStorageIndicator(false); return; }
+  if (!cloudAvailable()) { setStorageIndicator(false); return; }
   try {
     const data = await api("/api/bootstrap");
     if (Array.isArray(data.products)) state.products = data.products;
@@ -167,7 +227,7 @@ async function bootstrapData(silent = true) {
     if (typeof window.onDataRefresh === "function") window.onDataRefresh();
   } catch { state.apiOnline = false; setStorageIndicator(false); if (!silent) toast("Buluta bağlanılamadı, yerel veriler gösteriliyor", false); }
 }
-let syncTimer, syncBusy = false, lastActivity = Date.now(), syncTick = 0;
+let syncTimer, syncBusy = false, lastActivity = Date.now(), syncTick = 0, liveUnsub = null;
 async function pollSync() {
   if (!CONFIG.apiBase || document.hidden || syncBusy) return;
   // 5 dakikadır hareketsiz sekmelerde her 10 turda bir yoklanır (ücretsiz kota koruması);
@@ -182,6 +242,18 @@ async function pollSync() {
   finally { syncBusy = false; }
 }
 function startSync() {
+  if (cloudReady()) {
+    // Firestore anlık dinleyicisi: ürünlerde değişiklik olduğu an tüm cihazlara yansır (yoklamaya gerek yok).
+    if (liveUnsub) liveUnsub();
+    liveUnsub = window.LumreaCloud.subscribeProducts(products => {
+      if (!products) return;
+      state.products = products;
+      state.apiOnline = true; setStorageIndicator(true);
+      persist();
+      if (typeof window.onDataRefresh === "function") window.onDataRefresh();
+    });
+    return;
+  }
   if (!CONFIG.apiBase) return;
   clearInterval(syncTimer);
   syncTimer = setInterval(pollSync, Math.max(1000, Number(CONFIG.syncIntervalMs) || 1000));
