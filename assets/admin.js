@@ -410,6 +410,14 @@
       <div class="admin-toolbar"><h3 style="margin:0">Bülten aboneleri (${list.length})</h3><span class="grow"></span>${list.length ? `<button class="button outline" data-export-subscribers>CSV indir</button>` : ""}</div>
       ${list.length ? `<table class="admin-table"><thead><tr><th>E-POSTA</th><th>KAYIT TARİHİ</th></tr></thead><tbody>
       ${list.map(s => `<tr><td>${esc(s.email)}</td><td><small>${dateTr(s.date)}</small></td></tr>`).join("")}</tbody></table>` : `<div class="empty">Henüz abone yok.</div>`}
+    </div>
+    <div class="admin-panel"><h3>Kampanya postası gönder</h3>
+      <p class="form-note" style="margin-bottom:14px">${list.length} aboneye LUMREA adresinden e-posta gönderir (indirim, duyuru vb.).</p>
+      <form id="campaignForm" class="form-grid">
+        <label class="field full">Konu *<input name="subject" required maxlength="150" placeholder="Yeni koleksiyon geldi!"></label>
+        <label class="field full">Mesaj *<textarea name="message" rows="6" required maxlength="5000" placeholder="Aboneler için mesajını yaz…"></textarea></label>
+        <div class="admin-form-actions"><button type="submit" class="button dark" ${list.length ? "" : "disabled"}>Gönder →</button></div>
+      </form>
     </div>`;
   }
 
@@ -698,6 +706,17 @@
         twitter: String(fd.get("twitter")).trim(), whatsapp: String(fd.get("whatsapp")).trim()
       });
       if (ok) toast("SEO ve sosyal ayarları kaydedildi");
+    };
+    const campaignF = $("#campaignForm"); if (campaignF) campaignF.onsubmit = async e => {
+      e.preventDefault();
+      const fd = new FormData(campaignF);
+      const btn = campaignF.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Gönderiliyor…";
+      try {
+        const result = await api("/api/campaign/send", { method: "POST", body: JSON.stringify({ subject: fd.get("subject"), message: fd.get("message") }) });
+        toast(`${result.sent}/${result.total} aboneye gönderildi`);
+        campaignF.reset();
+      } catch (err) { toast(err.message, false); }
+      finally { btn.disabled = false; btn.textContent = "Gönder →"; }
     };
     const cf = $("#couponForm"); if (cf) cf.onsubmit = e => {
       e.preventDefault();

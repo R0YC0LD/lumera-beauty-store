@@ -45,6 +45,7 @@ if (cfg.firebaseConfig && cfg.firebaseConfig.apiKey) {
 
     onAuth(cb) { return onAuthStateChanged(auth, cb); },
     currentUser() { return auth.currentUser; },
+    async getIdToken() { return auth.currentUser ? auth.currentUser.getIdToken() : null; },
     async login(email, password) {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       return cred.user.getIdToken();

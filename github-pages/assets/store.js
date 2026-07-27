@@ -353,6 +353,39 @@
     openLayer($("#pageModal"));
   }
 
+  /* ---------- sipariş sorgula ---------- */
+  const ORDER_STATUS_TR = { new: "Alındı", preparing: "Hazırlanıyor", shipped: "Kargoda", complete: "Teslim edildi", cancelled: "İptal edildi" };
+  const PAY_STATUS_TR = { awaiting: "Ödeme bekleniyor", paid: "Ödendi", refunded: "İade edildi" };
+  function openOrderLookup() {
+    $("#orderLookupContent").innerHTML = `<button class="round-close modal-close" data-close>×</button><span class="eyebrow">SİPARİŞ TAKİBİ</span><h2>Siparişini sorgula</h2>
+      <p style="font-size:13.5px;color:var(--ink-soft);margin:6px 0 16px">Sipariş numaranı ve siparişte kullandığın e-posta adresini gir.</p>
+      <form id="orderLookupForm" class="form-grid">
+        <label class="field full">Sipariş numarası<input name="orderNo" required placeholder="LMR-2026-..."></label>
+        <label class="field full">E-posta<input name="email" type="email" required></label>
+        <div class="field full"><button class="button dark full" type="submit">Sorgula →</button></div>
+      </form>
+      <div id="orderLookupResult"></div>`;
+    openLayer($("#orderLookupModal"));
+    $("#orderLookupForm").onsubmit = async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const result = $("#orderLookupResult");
+      result.innerHTML = `<p style="margin-top:14px">Sorgulanıyor…</p>`;
+      try {
+        const data = await api("/api/orders/lookup", { method: "POST", body: JSON.stringify({ orderNo: fd.get("orderNo"), email: fd.get("email") }) });
+        const o = data.order;
+        const items = (o.items || []).map(i => `<li>${esc(i.product_name || i.name || "")} <b>[${esc(i.size || "")}]</b> × ${i.quantity}</li>`).join("");
+        result.innerHTML = `<div class="notice" style="margin-top:16px">
+          <b>${esc(o.orderNo)}</b><br>
+          Sipariş durumu: <b>${ORDER_STATUS_TR[o.status] || o.status}</b><br>
+          Ödeme durumu: <b>${PAY_STATUS_TR[o.paymentStatus] || o.paymentStatus}</b><br>
+          Toplam: <b>${money(o.total)}</b>${o.discount ? ` <small style="color:var(--ok)">(−${money(o.discount)} kupon)</small>` : ""}
+          <ul class="order-items-list" style="margin-top:10px">${items || "<li>—</li>"}</ul>
+        </div>`;
+      } catch (err) { result.innerHTML = `<p style="margin-top:14px;color:var(--danger)">${esc(err.message)}</p>`; }
+    };
+  }
+
   /* ---------- çerez bildirimi ---------- */
   function initCookieBanner() {
     const banner = $("#cookieBanner");
@@ -396,6 +429,7 @@
     if ((el = closest(".product-tabs button"))) { state.activeFilter = el.dataset.filter; $$(".product-tabs button").forEach(b => b.classList.toggle("active", b === el)); renderProducts(); return; }
     if ((el = closest("[data-favorite]"))) { const id = el.dataset.favorite; const i = state.favorites.indexOf(id); i >= 0 ? state.favorites.splice(i, 1) : state.favorites.push(id); persist(); renderHeader(); renderProducts(); renderFavorites(); return; }
     if ((el = closest("[data-page]"))) { showPage(el.dataset.page); return; }
+    if (closest("[data-order-lookup]")) { openOrderLookup(); return; }
     if ((el = closest("[data-product]"))) { openProduct(el.dataset.product); return; }
 
     if ((el = closest("[data-size-pick]"))) {

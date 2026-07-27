@@ -47,3 +47,8 @@ next-env.d.ts
 Thumbs.db
 desktop.ini
 cloudflare-worker/wrangler.toml
+
+# firebase functions
+functions/node_modules
+firebase-debug.log
+.firebase/

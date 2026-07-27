@@ -135,6 +135,26 @@ function closeLayers() { $$(".drawer.show,.modal.show,.search-modal.show").forEa
 /* ---------- API ---------- */
 const cloudReady = () => Boolean(window.LumreaCloud && window.LumreaCloud.ready);
 const cloudAvailable = () => Boolean(CONFIG.apiBase) || cloudReady();
+const CLOUD_FUNCTIONS = {
+  paymentInit: "https://paymentinit-sehdfzkjxq-uc.a.run.app",
+  posCredentials: "https://poscredentials-sehdfzkjxq-uc.a.run.app",
+  lookupOrder: "https://lookuporder-sehdfzkjxq-uc.a.run.app",
+  sendCampaign: "https://sendcampaign-sehdfzkjxq-uc.a.run.app"
+};
+async function callFunction(url, options = {}, needsAuth = false) {
+  const headers = { "Content-Type": "application/json" };
+  if (needsAuth) {
+    const token = await window.LumreaCloud.getIdToken();
+    if (!token) { const err = new Error("Yönetici oturumu gerekli"); err.status = 401; throw err; }
+    headers.Authorization = `Bearer ${token}`;
+  }
+  let response;
+  try { response = await fetch(url, { ...options, headers }); }
+  catch { const err = new Error("Sunucuya ulaşılamadı — internet bağlantınızı kontrol edin"); err.network = true; throw err; }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) { const err = new Error(data.error || "İşlem tamamlanamadı"); err.status = response.status; throw err; }
+  return data;
+}
 const FIREBASE_ERROR_TR = {
   "auth/invalid-credential": "Kullanıcı adı veya şifre hatalı",
   "auth/wrong-password": "Kullanıcı adı veya şifre hatalı",
@@ -196,12 +216,17 @@ async function apiCloud(path, options = {}) {
     if (clean === "/api/settings" && method === "PUT") { await cloud.saveSettings(body); return {}; }
     if (clean === "/api/audit") return { audit: await cloud.getAudit() };
     if (clean === "/api/images" && method === "POST") return { url: await cloud.uploadImage(body.data) };
+    if (clean === "/api/payments/init" && method === "POST") return callFunction(CLOUD_FUNCTIONS.paymentInit, { method: "POST", body: JSON.stringify(body) });
+    if (clean === "/api/pos/credentials" && method === "GET") return callFunction(CLOUD_FUNCTIONS.posCredentials, { method: "GET" }, true);
+    if (clean === "/api/pos/credentials" && method === "PUT") return callFunction(CLOUD_FUNCTIONS.posCredentials, { method: "PUT", body: JSON.stringify(body) }, true);
+    if (clean === "/api/orders/lookup" && method === "POST") return callFunction(CLOUD_FUNCTIONS.lookupOrder, { method: "POST", body: JSON.stringify(body) });
+    if (clean === "/api/campaign/send" && method === "POST") return callFunction(CLOUD_FUNCTIONS.sendCampaign, { method: "POST", body: JSON.stringify(body) }, true);
   } catch (err) {
     if (err.code === "auth/network-request-failed") err.network = true;
     if (FIREBASE_ERROR_TR[err.code]) err.message = FIREBASE_ERROR_TR[err.code];
     throw err;
   }
-  const err = new Error("Bu işlem Firebase modunda henüz desteklenmiyor (Sanal POS/kart ödemesi için Cloudflare Worker kurulumu gerekir — KURULUM.md)");
+  const err = new Error("Desteklenmeyen işlem");
   throw err;
 }
 function setStorageIndicator(online) {
