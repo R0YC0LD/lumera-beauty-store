@@ -535,4 +535,5 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
   .pay-badges{margin:0 auto}
   /* iOS Safari, odağa alınan input font boyutu 16px'ten küçükse sayfayı otomatik yakınlaştırıp kaydırır — bunu önle */
   input,select,textarea{font-size:16px}
+  .result-controls select,.stock-cell input,select.status-select,.coupon-row input{font-size:16px}
 }

@@ -587,8 +587,9 @@
   async function deleteOrderById(id) {
     const o = adminOrders().find(x => x.id === id); if (!o) return;
     if (!confirm(`${o.order_no || ""} numaralı sipariş kalıcı olarak silinsin mi? Bu işlem geri alınamaz; stok ve ciro etkisi geri alınır.`)) return;
+    let restored = true;
     if (state.apiOnline) {
-      try { await api(`/api/orders/${encodeURIComponent(id)}`, { method: "DELETE" }); }
+      try { const result = await api(`/api/orders/${encodeURIComponent(id)}`, { method: "DELETE" }); restored = result.restored !== false; }
       catch (err) { if (!handleSessionExpiry(err)) toast(err.message, false); return; }
       await loadAdminData();
     } else {
@@ -601,7 +602,7 @@
       persist();
     }
     renderAdmin();
-    toast("Sipariş silindi, stok ve ciro etkisi geri alındı");
+    toast(restored ? "Sipariş silindi, stok ve ciro etkisi geri alındı" : "Sipariş silindi ancak stok/kupon etkisi tam geri alınamadı — lütfen stok sayımını kontrol edin", restored);
   }
   async function saveSettingsPartial(patch) {
     const next = { ...state.settings, ...patch };

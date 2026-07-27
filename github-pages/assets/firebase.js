@@ -6,7 +6,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import {
   getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  onSnapshot, query, where, orderBy, addDoc
+  onSnapshot, query, where, orderBy, addDoc, runTransaction, increment
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 import {
   getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged
@@ -77,18 +77,19 @@ if (cfg.firebaseConfig && cfg.firebaseConfig.apiKey) {
       };
       await setDoc(doc(db, "orders", order.id), cloudOrder);
       if (order.coupon) {
-        try {
-          const cSnap = await getDoc(doc(db, "coupons", order.coupon));
-          if (cSnap.exists()) await updateDoc(doc(db, "coupons", order.coupon), { used_count: (cSnap.data().used_count || 0) + 1 });
-        } catch { /* kupon sayaç güncellemesi başarısız olursa sipariş yine de oluşur */ }
+        try { await updateDoc(doc(db, "coupons", order.coupon), { used_count: increment(1) }); }
+        catch { /* kupon sayaç güncellemesi başarısız olursa sipariş yine de oluşur */ }
       }
       for (const line of order.items) {
         try {
-          const pSnap = await getDoc(doc(db, "products", line.id));
-          if (!pSnap.exists()) continue;
-          const p = pSnap.data();
-          const sizes = (p.sizes || []).map(s => s.name === line.size ? { ...s, stock: Math.max(0, (Number(s.stock) || 0) - line.quantity) } : s);
-          await updateDoc(doc(db, "products", line.id), { sizes });
+          await runTransaction(db, async tx => {
+            const pRef = doc(db, "products", line.id);
+            const pSnap = await tx.get(pRef);
+            if (!pSnap.exists()) return;
+            const p = pSnap.data();
+            const sizes = (p.sizes || []).map(s => s.name === line.size ? { ...s, stock: Math.max(0, (Number(s.stock) || 0) - line.quantity) } : s);
+            tx.update(pRef, { sizes });
+          });
         } catch { /* stok güncellemesi başarısız olursa sipariş yine de oluşur */ }
       }
       await logAudit("order.create", "order", order.id);
@@ -102,27 +103,30 @@ if (cfg.firebaseConfig && cfg.firebaseConfig.apiKey) {
       await logAudit("order.update", "order", id);
     },
     async deleteOrder(id) {
+      let restored = true;
       const oSnap = await getDoc(doc(db, "orders", id));
       if (oSnap.exists()) {
         const o = oSnap.data();
         for (const line of (o.items || [])) {
           try {
-            const pSnap = await getDoc(doc(db, "products", line.id));
-            if (!pSnap.exists()) continue;
-            const p = pSnap.data();
-            const sizes = (p.sizes || []).map(s => s.name === line.size ? { ...s, stock: (Number(s.stock) || 0) + (Number(line.quantity) || 0) } : s);
-            await updateDoc(doc(db, "products", line.id), { sizes });
-          } catch { /* stok geri yükleme başarısız olursa sipariş yine de silinir */ }
+            await runTransaction(db, async tx => {
+              const pRef = doc(db, "products", line.id);
+              const pSnap = await tx.get(pRef);
+              if (!pSnap.exists()) return;
+              const p = pSnap.data();
+              const sizes = (p.sizes || []).map(s => s.name === line.size ? { ...s, stock: (Number(s.stock) || 0) + (Number(line.quantity) || 0) } : s);
+              tx.update(pRef, { sizes });
+            });
+          } catch { restored = false; /* stok geri yükleme başarısız olursa sipariş yine de silinir */ }
         }
         if (o.coupon_code) {
-          try {
-            const cSnap = await getDoc(doc(db, "coupons", o.coupon_code));
-            if (cSnap.exists()) await updateDoc(doc(db, "coupons", o.coupon_code), { used_count: Math.max(0, (cSnap.data().used_count || 0) - 1) });
-          } catch { /* kupon sayaç geri alma başarısız olursa sipariş yine de silinir */ }
+          try { await updateDoc(doc(db, "coupons", o.coupon_code), { used_count: increment(-1) }); }
+          catch { restored = false; /* kupon sayaç geri alma başarısız olursa sipariş yine de silinir */ }
         }
       }
       await deleteDoc(doc(db, "orders", id));
       await logAudit("order.delete", "order", id);
+      return { restored };
     },
 
     async getCoupons() { return rows(await getDocs(couponsCol)).map(c => ({ ...c, code: c.id })); },
