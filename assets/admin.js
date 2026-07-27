@@ -239,7 +239,7 @@
     const orders = adminOrders().filter(o => { const c = o.customer || {}; return !q || `${o.order_no || ""} ${c.firstName || ""} ${c.lastName || ""} ${c.email || ""} ${c.phone || ""}`.toLocaleLowerCase("tr").includes(q); });
     return `<div class="admin-panel">
       <div class="admin-toolbar"><input type="search" id="adminOrderSearch" placeholder="Sipariş no, müşteri adı, e-posta veya telefon ara…" value="${esc(state.admin.orderQuery)}"></div>
-      ${orders.length ? `<div style="overflow-x:auto"><table class="admin-table"><thead><tr><th>SİPARİŞ</th><th>MÜŞTERİ</th><th>ÜRÜNLER</th><th>TUTAR</th><th>ÖDEME</th><th>ÖDEME DURUMU</th><th>SİPARİŞ DURUMU</th></tr></thead><tbody>
+      ${orders.length ? `<div style="overflow-x:auto"><table class="admin-table"><thead><tr><th>SİPARİŞ</th><th>MÜŞTERİ</th><th>ÜRÜNLER</th><th>TUTAR</th><th>ÖDEME</th><th>ÖDEME DURUMU</th><th>SİPARİŞ DURUMU</th><th style="text-align:right">İŞLEM</th></tr></thead><tbody>
       ${orders.map(o => {
         const c = o.customer || {};
         const items = (o.items || []).map(i => `<li>${esc(i.product_name || productName(i.id))} <b>[${esc(i.size)}]</b> × ${i.quantity}</li>`).join("");
@@ -251,6 +251,7 @@
           <td><span class="pill dim">${(o.payment_method || "transfer") === "cod" ? "Kapıda" : "Havale/EFT"}</span></td>
           <td><select class="status-select" data-order-pay="${esc(o.id)}">${Object.entries(payStatusTr).map(([k, v]) => `<option value="${k}" ${(o.payment_status || "awaiting") === k ? "selected" : ""}>${v}</option>`).join("")}</select></td>
           <td><select class="status-select" data-order-status="${esc(o.id)}">${Object.entries(orderStatusTr).map(([k, v]) => `<option value="${k}" ${o.status === k ? "selected" : ""}>${v}</option>`).join("")}</select></td>
+          <td class="mini-actions"><button class="danger" data-delete-order="${esc(o.id)}">Sil</button></td>
         </tr>`;
       }).join("")}</tbody></table></div>` : `<div class="empty">Henüz sipariş yok.</div>`}
     </div>`;
@@ -583,6 +584,25 @@
     }
     toast("Sipariş güncellendi");
   }
+  async function deleteOrderById(id) {
+    const o = adminOrders().find(x => x.id === id); if (!o) return;
+    if (!confirm(`${o.order_no || ""} numaralı sipariş kalıcı olarak silinsin mi? Bu işlem geri alınamaz; stok ve ciro etkisi geri alınır.`)) return;
+    if (state.apiOnline) {
+      try { await api(`/api/orders/${encodeURIComponent(id)}`, { method: "DELETE" }); }
+      catch (err) { if (!handleSessionExpiry(err)) toast(err.message, false); return; }
+      await loadAdminData();
+    } else {
+      const order = state.orders.find(x => x.id === id);
+      if (order) {
+        (order.items || []).forEach(l => { const p = state.products.find(x => x.id === l.id); const s = p && sizeOf(p, l.size); if (s) s.stock = (Number(s.stock) || 0) + l.quantity; });
+        if (order.coupon) { const c = state.coupons.find(x => x.code === order.coupon); if (c) c.usedCount = Math.max(0, (c.usedCount || 0) - 1); }
+      }
+      state.orders = state.orders.filter(x => x.id !== id);
+      persist();
+    }
+    renderAdmin();
+    toast("Sipariş silindi, stok ve ciro etkisi geri alındı");
+  }
   async function saveSettingsPartial(patch) {
     const next = { ...state.settings, ...patch };
     if (state.apiOnline) {
@@ -795,6 +815,7 @@
     if (closest("[data-cancel-edit]")) { state.admin.editing = null; renderAdmin(); return; }
     if ((el = closest("[data-delete-product]"))) { deleteProductById(el.dataset.deleteProduct); return; }
     if ((el = closest("[data-save-stock]"))) { saveStockRow(el.dataset.saveStock); return; }
+    if ((el = closest("[data-delete-order]"))) { deleteOrderById(el.dataset.deleteOrder); return; }
     if (closest("[data-add-size]")) { $("#sizeEditor").insertAdjacentHTML("beforeend", sizeEditorRow()); return; }
     if (closest("[data-preset-sizes]")) { $("#sizeEditor").innerHTML = DEFAULT_SIZES.map(n => sizeEditorRow(n, 0)).join(""); return; }
     if ((el = closest("[data-remove-size]"))) { el.closest(".size-editor-row").remove(); return; }

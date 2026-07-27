@@ -101,6 +101,29 @@ if (cfg.firebaseConfig && cfg.firebaseConfig.apiKey) {
       await updateDoc(doc(db, "orders", id), cloudPatch);
       await logAudit("order.update", "order", id);
     },
+    async deleteOrder(id) {
+      const oSnap = await getDoc(doc(db, "orders", id));
+      if (oSnap.exists()) {
+        const o = oSnap.data();
+        for (const line of (o.items || [])) {
+          try {
+            const pSnap = await getDoc(doc(db, "products", line.id));
+            if (!pSnap.exists()) continue;
+            const p = pSnap.data();
+            const sizes = (p.sizes || []).map(s => s.name === line.size ? { ...s, stock: (Number(s.stock) || 0) + (Number(line.quantity) || 0) } : s);
+            await updateDoc(doc(db, "products", line.id), { sizes });
+          } catch { /* stok geri yükleme başarısız olursa sipariş yine de silinir */ }
+        }
+        if (o.coupon_code) {
+          try {
+            const cSnap = await getDoc(doc(db, "coupons", o.coupon_code));
+            if (cSnap.exists()) await updateDoc(doc(db, "coupons", o.coupon_code), { used_count: Math.max(0, (cSnap.data().used_count || 0) - 1) });
+          } catch { /* kupon sayaç geri alma başarısız olursa sipariş yine de silinir */ }
+        }
+      }
+      await deleteDoc(doc(db, "orders", id));
+      await logAudit("order.delete", "order", id);
+    },
 
     async getCoupons() { return rows(await getDocs(couponsCol)).map(c => ({ ...c, code: c.id })); },
     async validateCoupon(code, total) {

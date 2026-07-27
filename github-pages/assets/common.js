@@ -198,6 +198,7 @@ async function apiCloud(path, options = {}) {
     if (clean === "/api/orders" && method === "GET") return { orders: await cloud.getOrders() };
     if (clean === "/api/orders" && method === "POST") return { order: await cloud.createOrder(body) };
     if (seg[1] === "orders" && seg[2] && method === "PATCH") { await cloud.updateOrder(decodeURIComponent(seg[2]), body); return {}; }
+    if (seg[1] === "orders" && seg[2] && method === "DELETE") { await cloud.deleteOrder(decodeURIComponent(seg[2])); return {}; }
     if (clean === "/api/coupons" && method === "GET") return { coupons: await cloud.getCoupons() };
     if (clean === "/api/coupons/validate" && method === "POST") {
       const r = await cloud.validateCoupon(body.code, body.total);

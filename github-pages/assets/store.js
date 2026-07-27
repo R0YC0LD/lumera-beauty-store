@@ -7,9 +7,10 @@
   function renderGenders() {
     const tones = { kadin: ["#f0d8ca", "#ddb49c"], erkek: ["#e4d8c6", "#bfa585"], unisex: ["#eee0c9", "#d7bd93"], cocuk: ["#f4ddc0", "#e5b586"] };
     const copy = { kadin: "Zarafetin günlük hali", erkek: "Net çizgiler, rahat duruş", unisex: "Herkese ait parçalar", cocuk: "Konforlu ve dayanıklı" };
+    const photos = { kadin: "assets/category/kadin.png", erkek: "assets/category/erkek.png", unisex: "assets/category/unisex.png", cocuk: "assets/category/cocuk.png" };
     $("#genderGrid").innerHTML = Object.entries(GENDERS).map(([key, label], i) => {
       const count = state.products.filter(p => p.active !== false && p.gender === key).length;
-      return `<button class="gender-card" data-gender-card="${key}" style="--tone:${tones[key][0]};--tone2:${tones[key][1]}"><span class="num">0${i + 1}</span><div class="silhouette"></div><h3>${label}</h3><p>${copy[key]}</p><small class="count">${count} ÜRÜN</small></button>`;
+      return `<button class="gender-card" data-gender-card="${key}" style="--tone:${tones[key][0]};--tone2:${tones[key][1]}"><span class="num">0${i + 1}</span><img class="gender-photo" src="${photos[key]}" alt="${esc(label)}" loading="lazy"><h3>${label}</h3><p>${copy[key]}</p><small class="count">${count} ÜRÜN</small></button>`;
     }).join("");
   }
   function renderCategoryChips() {
@@ -103,7 +104,7 @@
     detailSize = firstAvailable ? firstAvailable.name : null;
     detailQty = 1;
     $("#productDetail").innerHTML = `<button class="round-close modal-close" data-close>×</button>
-      <div class="detail-art" style="--tone:${esc(p.tone || "#e8e2d6")}">${productArt(p)}</div>
+      <div class="detail-art ${p.imageUrl ? "" : "no-zoom"}" data-zoom-toggle style="--tone:${esc(p.tone || "#e8e2d6")}">${productArt(p)}</div>
       <div class="detail-copy">
         <span class="eyebrow">${esc((p.brand || "").toUpperCase())} · ${esc(GENDERS[p.gender] || "")}</span>
         <h2>${esc(p.name)}</h2>
@@ -404,6 +405,13 @@
 
     if (closest("[data-close]") || e.target === $("#overlay")) { closeLayers(); return; }
 
+    if (closest("#imageLightbox")) { $("#imageLightbox").classList.remove("show"); return; }
+    if ((el = closest("[data-zoom-toggle]"))) {
+      const img = el.querySelector("img");
+      if (img) { $("#lightboxImg").src = img.src; $("#lightboxImg").alt = img.alt || ""; $("#imageLightbox").classList.add("show"); }
+      return;
+    }
+
     if (closest("#secretLogo")) {
       logoClicks++; clearTimeout(logoTimer);
       logoTimer = setTimeout(() => { logoClicks = 0; }, 1800);
@@ -467,7 +475,7 @@
   });
   document.addEventListener("keydown", e => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openSearch(); }
-    if (e.key === "Escape") closeLayers();
+    if (e.key === "Escape") { closeLayers(); $("#imageLightbox")?.classList.remove("show"); }
   });
   $("#searchInput").addEventListener("input", e => renderSearch(e.target.value));
 
